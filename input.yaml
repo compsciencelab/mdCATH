@@ -1,0 +1,20 @@
+pdblist : /shared/antoniom/buildCATHDataset/accetptedPDBs.txt
+pdbDir : /workspace7/toni_cath/chain
+gpugridResultsPath : [/workspace7/toni_cath/gpugrid_extend_results]
+gpugridInputsPath : ["/workspace7/toni_cath/gpugrid_extend"]
+concatTrajPath : /workspace7/toni_cath/gpugrid_extend_results/trajs_concat
+finaldatasetPath : /workspace1/antoniom/
+temperatures : ["320","348", "379", "413", "450"]
+numReplicas : 4
+molFilter: null 
+## the trajAttrs and trajDatasets are different for each replica
+trajAttrs: [numFrames, trajLength]
+trajDatasets: [rmsd, gyrationRadius, rmsf, dssp]
+pdbAttrs: [numProteinAtoms, numResidues, numChains, numBonds]
+pdbDatasets: [element, z, resname, resid, chain]
+#
+batchSize: 1
+toRunBatches: 1
+startBatch: 5
+endBatch: null
+maxWorkers: 12
