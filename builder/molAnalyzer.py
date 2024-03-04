@@ -66,7 +66,7 @@ class molAnalyzer:
             self.metricAnalysis["rmsd"] = md.rmsd(self.traj, refMol)
             self.metricAnalysis["gyrationRadius"] = md.compute_rg(self.traj)
             self.metricAnalysis["rmsf"] = md.rmsf(self.traj, None)
-            self.metricAnalysis["dssp"] = encodeDSSP(md.compute_dssp(self.traj, simplified=True))
+            self.metricAnalysis["dssp"] = encodeDSSP(md.compute_dssp(self.traj, simplified=False))
             
             # traj attributes
             self.trajAttrs["numFrames"] = self.traj.n_frames
@@ -136,5 +136,5 @@ def write_toH5(txtfile, h5group):
 def encodeDSSP(dssp):
     encodeDSSP = []
     for i in range(len(dssp)):
-        encodeDSSP.apppend([x.encode('utf-8') for x in dssp[i]])
+        encodeDSSP.append([x.encode('utf-8') for x in dssp[i]])
     return encodeDSSP
