@@ -1,5 +1,6 @@
 import os 
 os.environ["NUMEXPR_MAX_THREADS"] = "24"
+os.environ["OMP_NUM_THREADS"] = "24"
 import math
 import sys
 import h5py
