@@ -114,6 +114,9 @@ class molAnalyzer:
             # coords and forces are written here using mdtraj function
             replicaGroup.create_dataset("coords", data=self.traj.xyz)
             replicaGroup.create_dataset("forces", data=self.forces.xyz)
+            # add units attributes 
+            replicaGroup["coords"].attrs["unit"] = "Angstrom"
+            replicaGroup["forces"].attrs["unit"] = "kcal/mol/Angstrom"
             
         else:
             self.molLogger.error("Only one of the two groups could be None")
