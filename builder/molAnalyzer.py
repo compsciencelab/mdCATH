@@ -55,13 +55,23 @@ class molAnalyzer:
         # check if the extension is .dcd or .xtc
         if trajFiles[0].endswith(".dcd"):
             self.molLogger.info(f"mol: {self.pdbName} | Trajectory is in .dcd format, processing as forces")
-            self.forces = md.load(trajFiles, top=self.pdbFile, atom_indices=self.proteinIdxs)
+            try:
+                self.forces = md.load(trajFiles, top=self.pdbFile, atom_indices=self.proteinIdxs)
+            except RuntimeError as e:
+                self.molLogger.error(f"Error while loading the trajectory {os.path.basename(trajFiles[0])}")
+                self.molLogger.error(e)
+                return None
         elif trajFiles[0].endswith(".xtc"):
             self.trajAttrs = {}
             self.metricAnalysis = {}
             refMol = md.load(self.pdbFile, atom_indices=self.proteinIdxs)
-            self.molLogger.info(f"mol: {self.pdbName} |Trajectory is in .xtc format, processing as coordinates")
-            self.traj = md.load(trajFiles, top=self.pdbFile, atom_indices=self.proteinIdxs)
+            self.molLogger.info(f"mol: {self.pdbName} | Trajectory is in .xtc format, processing as coordinates")
+            try:
+                self.traj = md.load(trajFiles, top=self.pdbFile, atom_indices=self.proteinIdxs)
+            except RuntimeError as e:
+                self.molLogger.error(f"Error while loading the trajectory {os.path.basename(trajFiles[0])}")
+                self.molLogger.error(e)
+                return None
             # md analysis
             self.metricAnalysis["rmsd"] = md.rmsd(self.traj, refMol)
             self.metricAnalysis["gyrationRadius"] = md.compute_rg(self.traj)
