@@ -16,6 +16,10 @@ from trajManager import TrajectoryFileManager
 from molAnalyzer import molAnalyzer
 from scheduler import ComputationScheduler
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis")
+
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("builder")
 
 class Payload:
@@ -41,52 +45,74 @@ def run(scheduler, args, batch_idx):
         The index of the batch to be processed
     """
     pbbIndices = scheduler.process(batch_idx)
-    #resFile = scheduler.getFileName(args.finaldatasetPath, batch_idx)
     trajFileManager = TrajectoryFileManager(args.gpugridResultsPath, args.concatTrajPath)
     for pdb in tqdm(pbbIndices, total=len(pbbIndices), desc="reading PDBs"):    
-        with tempfile.NamedTemporaryFile() as temp:
-            tmpFile = temp.name
+        with tempfile.TemporaryDirectory() as temp:
+            
+            tmpFile = opj(temp, f"cath_dataset_{pdb}.h5")
+            tmplogfile = tmpFile.replace(".h5", ".txt")
+            
+            resFile = opj(args.finaldatasetPath, pdb, f"cath_dataset_{pdb}.h5")
+            logFile = opj(args.finaldatasetPath, pdb, f"log_{pdb}_batch{batch_idx}.txt")
+            
+            pdbLogger = logging.getLogger(f"builder_{pdb}")
+            file_handler = logging.FileHandler(tmplogfile)
+            file_handler.setLevel(logging.INFO)
+            pdbLogger.addHandler(file_handler)
+            pdbLogger.setLevel(logging.INFO)
+                    
+            pdbLogger.info(f"\nStarting the dataset generation for {pdb} and batch {batch_idx}")
+            
+            if os.path.exists(resFile):
+                logger.info(f"h5py dataset for {pdb} already exists, skipping")
+                continue
+            pdbFilePath = f"{args.pdbDir}/{pdb}.pdb"
+            if not os.path.exists(pdbFilePath):
+                logger.warning(f"{pdb} does not exist")
+                continue
+            
             with h5py.File(tmpFile, "w", libver='latest') as h5:
-                resFile = opj(args.finaldatasetPath, f"cath_dataset_{pdb}.h5")
-                if os.path.exists(resFile):
-                    logger.info(f"h5py dataset for {pdb} already exists, skipping")
-                    continue
-                pdbFilePath = f"{args.pdbDir}/{pdb}.pdb"
-                if not os.path.exists(pdbFilePath):
-                    logger.warning(f"{pdb} does not exist")
-                    continue
+                
                 h5.attrs["layout"] = "cath-dataset-only-protein"
                 pdbGroup = h5.create_group(pdb)
-                Analyzer = molAnalyzer(pdbFilePath, args.molFilter)
+                Analyzer = molAnalyzer(pdbFilePath, args.molFilter, file_handler)
+                
                 for temp in args.temperatures:
                     pdbTempGroup = pdbGroup.create_group(f"sims{temp}K")
+                    pdbLogger.info(f"Starting the analysis for {pdb} at {temp}K")
+                    pdbLogger.info(f"---------------------------------------------------")
                     for repl in range(args.numReplicas):
+                        pdbLogger.info(f"## REPLICA {repl} ##")
                         pdbTempReplGroup = pdbTempGroup.create_group(str(repl))
                         try:
                             trajFiles = trajFileManager.getTrajFiles(pdb, temp, repl)
                             dcdFiles = [f.replace("9.xtc", "8.vel.dcd") for f in trajFiles]
-                            #boxFile = trajFiles[0].replace("9.xtc", "10.xsc")
-                            #structurePDB = os.path.join(args.gpugridInputsPath, pdb, f"{pdb}_{temp}_{repl}", "structure.pdb")
-                            #structurePSF = structurePDB.replace(".pdb", ".psf")
                         except AssertionError as e:
-                            logger.error(e)
+                            pdbLogger.error(e)
                             continue
                         
                         Analyzer.computeProperties()
-                        Analyzer.trajAnalysis(trajFiles)
-                        Analyzer.trajAnalysis(dcdFiles)
-                        if not hasattr(Analyzer, "forces") or not hasattr(Analyzer, "traj"):
-                            logger.error(f"forces or traj not found for {pdb} {temp} {repl}")
+                        Analyzer.trajAnalysis(trajFiles, batch_idx)
+                        Analyzer.readDCD(dcdFiles, batch_idx)
+                        if not hasattr(Analyzer, "forces") or not hasattr(Analyzer, "coords"):
+                            pdbLogger.error(f"forces or traj not found for {pdb} {temp} {repl}")
                             continue
-                       
+                        
                         # write the data to the h5 file for the replica
                         Analyzer.write_toH5(molGroup=None, replicaGroup=pdbTempReplGroup, attrs=args.trajAttrs, datasets=args.trajDatasets)
                         
-                # write the data to the h5 file for the molecule
-                Analyzer.write_toH5(molGroup=pdbGroup, replicaGroup=None, attrs=args.pdbAttrs, datasets=args.pdbDatasets)  
+                # If no replica was found, skip the molecule. The molecule will be written to the h5 file only if it has at least one replica at one temperature
+                if not hasattr(Analyzer, "molAttrs"):
+                    pdbLogger.error(f"molAttrs not found for {pdb} and batch {batch_idx}")
+                    continue
                 
-            logger.info(f"Moving temporary file to: {resFile}")
-            shutil.copyfile(tmpFile, resFile)            
+                # write the data to the h5 file for the molecule 
+                Analyzer.write_toH5(molGroup=pdbGroup, replicaGroup=None, attrs=args.pdbAttrs, datasets=args.pdbDatasets)  
+            
+            os.makedirs(opj(args.finaldatasetPath, pdb), exist_ok=True)
+            shutil.copyfile(tmpFile, resFile)
+            pdbLogger.info(f"\n{pdb} batch {batch_idx} completed successfully added to mdCATH dataset")
+            shutil.copyfile(tmplogfile, logFile) 
     
 def launch():
     args = get_args()
