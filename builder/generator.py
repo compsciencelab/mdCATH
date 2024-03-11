@@ -61,7 +61,7 @@ def run(scheduler, args, batch_idx):
             pdbLogger.addHandler(file_handler)
             pdbLogger.setLevel(logging.INFO)
                     
-            pdbLogger.info(f"\nStarting the dataset generation for {pdb} and batch {batch_idx}")
+            pdbLogger.info(f"Starting the dataset generation for {pdb} and batch {batch_idx}")
             
             if os.path.exists(resFile):
                 logger.info(f"h5py dataset for {pdb} already exists, skipping")
