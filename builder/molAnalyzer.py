@@ -2,11 +2,14 @@ import os
 import logging
 import numpy as np 
 import mdtraj as md
+import MDAnalysis
 from moleculekit.molecule import Molecule
 from moleculekit.periodictable import periodictable
 
+NM_TO_ANGSTROM = 10
+
 class molAnalyzer:
-    def __init__(self, pdbFile, filter=None):
+    def __init__(self, pdbFile, filter=None, file_handler=None):
         """ MolAnalyzer class take care of the analysis of the molecule, it builds the molecule object and compute all a serires of properties
         this will be then used to generate a series othe h5dataset.
         Parameters
@@ -16,11 +19,15 @@ class molAnalyzer:
         filter : str
             VMD filter to be used to select the atoms to be considered (default is None)
         """
+        self.molLogger = logging.getLogger("MolAnalyzer")
+        if file_handler is not None:
+            self.molLogger.addHandler(file_handler)        
+        logging.getLogger("moleculekit").handlers = [self.molLogger]
+        
         self.pdbFile = pdbFile
         self.pdbName = os.path.basename(pdbFile).split(".")[0]
         self.mol = Molecule(pdbFile)
         self.mol.filter("protein")
-        self.molLogger = logging.getLogger("MolAnalyzer")
         if filter is not None:
             try:
                 self.mol.filter(filter)
@@ -45,46 +52,53 @@ class molAnalyzer:
         self.molAttrs["numBonds"] = self.tmpmol.numBonds
         self.proteinIdxs = self.tmpmol.get("index", sel="protein")
         
-    def trajAnalysis(self, trajFiles):
+    def trajAnalysis(self, trajFiles, batch_idx):
         """Perform the analysis of the trajectory file after concatenation
         Parameters
         ----------
         trajFiles : list
-            The list of the trajectory files (could be .xtc or .dcd files)
+            The list of the trajectory files (.xtc format)
         """
-        # check if the extension is .dcd or .xtc
-        if trajFiles[0].endswith(".dcd"):
-            self.molLogger.info(f"mol: {self.pdbName} | Trajectory is in .dcd format, processing as forces")
-            try:
-                self.forces = md.load(trajFiles, top=self.pdbFile, atom_indices=self.proteinIdxs)
-            except RuntimeError as e:
-                self.molLogger.error(f"Error while loading the trajectory {os.path.basename(trajFiles[0])}")
-                self.molLogger.error(e)
-                return None
-        elif trajFiles[0].endswith(".xtc"):
-            self.trajAttrs = {}
-            self.metricAnalysis = {}
-            refMol = md.load(self.pdbFile, atom_indices=self.proteinIdxs)
-            self.molLogger.info(f"mol: {self.pdbName} | Trajectory is in .xtc format, processing as coordinates")
-            try:
-                self.traj = md.load(trajFiles, top=self.pdbFile, atom_indices=self.proteinIdxs)
-            except RuntimeError as e:
-                self.molLogger.error(f"Error while loading the trajectory {os.path.basename(trajFiles[0])}")
-                self.molLogger.error(e)
-                return None
-            # md analysis
-            self.metricAnalysis["rmsd"] = md.rmsd(self.traj, refMol)
-            self.metricAnalysis["gyrationRadius"] = md.compute_rg(self.traj)
-            self.metricAnalysis["rmsf"] = md.rmsf(self.traj, None)
-            self.metricAnalysis["dssp"] = encodeDSSP(md.compute_dssp(self.traj, simplified=False))
+        self.trajAttrs = {}
+        self.metricAnalysis = {}
+        try:
+            self.traj = md.load(trajFiles, top=self.pdbFile, atom_indices=self.proteinIdxs)
+            self.coords = self.traj.xyz.copy() * NM_TO_ANGSTROM # convert to Angstrom
             
-            # traj attributes
-            self.trajAttrs["numFrames"] = self.traj.n_frames
-            self.trajAttrs["trajLength"] = self.traj.n_frames * 1 # ns, gpugrid computation with reportInterval every 1 ns           
-        else:
-            self.molLogger.error(f"Trajectory format not recognized, {trajFiles[0]}")
-            return
+        except (RuntimeError, ValueError, OSError) as e:
+            self.molLogger.error(f"TRAJECTORY LOADING ERROR ON BATCH:{batch_idx} | SIM: {os.path.basename(trajFiles[0]).split('-')[0]}")
+            self.molLogger.error(e)
+            return None           
         
+        # rmsd analysis will consider the heavy atoms only
+        idxsHeavyAtoms = self.traj.top.select("not element H")
+        self.traj = self.traj.atom_slice(idxsHeavyAtoms)
+                    
+        self.metricAnalysis["rmsd"] = md.rmsd(self.traj, self.traj, 0)
+        self.metricAnalysis["gyrationRadius"] = md.compute_rg(self.traj)
+        # the rmsf is computed for the CA atoms only
+        idxsCA = self.traj.top.select("name CA")  
+        self.metricAnalysis["rmsf"] = md.rmsf(self.traj, self.traj, 0,  atom_indices=idxsCA)
+        self.metricAnalysis["dssp"] = encodeDSSP(md.compute_dssp(self.traj, simplified=False))
+        
+        # traj attributes
+        self.trajAttrs["numFrames"] = self.traj.n_frames
+        self.trajAttrs["trajLength"] = self.traj.n_frames * 1 # ns, gpugrid computation with reportInterval every 1 ns
+        self.trajAttrs["box"] = self.traj.unitcell_vectors[0] # the box is the same for all frames, so we take the first one
+        
+        self.molLogger.info(f"Trajectory length: {self.trajAttrs['trajLength']} ns")         
+    
+    def readDCD(self, dcdFiles, batch_idx):
+        try:
+            u = MDAnalysis.Universe(self.pdbFile, dcdFiles)
+            self.forces = np.zeros(shape=(u.trajectory.n_frames, len(self.proteinIdxs), 3), dtype=np.float32)
+            for i, ts in enumerate(u.trajectory):
+                self.forces[i] = u.atoms.positions[self.proteinIdxs,:] # already in kcal/mol/Angstrom
+        except (RuntimeError, ValueError, OSError) as e:
+            self.molLogger.error(f"FORCE LOADING ERROR ON BATCH:{batch_idx} | SIM: {os.path.basename(dcdFiles[0]).split('-')[0]}")
+            self.molLogger.error(e)
+            return None
+    
     def write_toH5(self, molGroup, replicaGroup, attrs, datasets):
         """Write the data to the h5 file, according to the properties defined in the input for the dataset
         Parameters
@@ -121,9 +135,12 @@ class molAnalyzer:
             for key, value in self.metricAnalysis.items():
                 if key in datasets:
                     replicaGroup.create_dataset(key, data=value)
+                    # add attr for the units 
+                    replicaGroup[key].attrs["unit"] = "nm" 
+  
             # coords and forces are written here using mdtraj function
-            replicaGroup.create_dataset("coords", data=self.traj.xyz)
-            replicaGroup.create_dataset("forces", data=self.forces.xyz)
+            replicaGroup.create_dataset("coords", data=self.coords)
+            replicaGroup.create_dataset("forces", data=self.forces)
             # add units attributes 
             replicaGroup["coords"].attrs["unit"] = "Angstrom"
             replicaGroup["forces"].attrs["unit"] = "kcal/mol/Angstrom"
