@@ -3,18 +3,18 @@ pdbDir : /workspace7/toni_cath/chain
 gpugridResultsPath : [/workspace7/toni_cath/gpugrid_extend_results]
 gpugridInputsPath : ["/workspace7/toni_cath/gpugrid_extend"]
 concatTrajPath : /workspace7/toni_cath/gpugrid_extend_results/trajs_concat
-finaldatasetPath : /workspace1/antoniom/
-temperatures : ["320","348", "379", "413", "450"]
+finaldatasetPath : /workspace7/antoniom/mdCATH
+temperatures : ["320", "348", "379", "413", "450"]
 numReplicas : 4
 molFilter: null 
 ## the trajAttrs and trajDatasets are different for each replica
-trajAttrs: [numFrames, trajLength]
+trajAttrs: [numFrames, trajLength, box]
 trajDatasets: [rmsd, gyrationRadius, rmsf, dssp]
-pdbAttrs: [numProteinAtoms, numResidues, numChains, numBonds]
+pdbAttrs: [numProteinAtoms, numResidues, numChains]
 pdbDatasets: [element, z, resname, resid, chain]
 #
 batchSize: 1
-toRunBatches: 1
-startBatch: 5
+toRunBatches: null
+startBatch: null
 endBatch: null
-maxWorkers: 12
+maxWorkers: 24
