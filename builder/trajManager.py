@@ -23,7 +23,7 @@ class TrajectoryFileManager:
             The temperature.
         repl: int
             The replica number, to retrieve the corresponding trajectory file.
-        concatTrajPath: str
+        concatTrajPath: str or None
             The path to the concatenated trajectory files.
         """
         basename = f"{pdbname}_{temp}_{repl}"
