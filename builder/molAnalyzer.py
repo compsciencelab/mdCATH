@@ -9,7 +9,7 @@ from moleculekit.periodictable import periodictable
 NM_TO_ANGSTROM = 10
 
 class molAnalyzer:
-    def __init__(self, pdbFile, filter=None, file_handler=None):
+    def __init__(self, pdbFile, filter=None, file_handler=None, processed_path="."):
         """ MolAnalyzer class take care of the analysis of the molecule, it builds the molecule object and compute all a serires of properties
         this will be then used to generate a series othe h5dataset.
         Parameters
@@ -18,6 +18,10 @@ class molAnalyzer:
             The path to the pdb file
         filter : str
             VMD filter to be used to select the atoms to be considered (default is None)
+        file_handler : logging.FileHandler
+            The file handler to be used to write the log file
+        processed_path : str
+            The path where the processed files will be saved, in this case the filtered pdb file
         """
         self.molLogger = logging.getLogger("MolAnalyzer")
         if file_handler is not None:
@@ -28,6 +32,8 @@ class molAnalyzer:
         self.pdbName = os.path.basename(pdbFile).split(".")[0]
         self.mol = Molecule(pdbFile)
         self.mol.filter("protein")
+        self.pdb_filtered_name = f"{processed_path}/{self.pdbName}_protein_filter.pdb"
+        self.mol.write(self.pdb_filtered_name)
         if filter is not None:
             try:
                 self.mol.filter(filter)
@@ -116,7 +122,9 @@ class molAnalyzer:
         """
         if molGroup is not None and replicaGroup is None:
             # write the pdb file to the h5 file 
-            write_toH5(self.pdbFile, molGroup)
+            write_toH5(self.pdbFile, molGroup, dataset_name="pdb")
+            # write the filtered pdb file to the h5 file
+            write_toH5(self.pdb_filtered_name, molGroup, dataset_name="pdbProteinAtoms")
             # mol attributes
             for key, value in self.molAttrs.items():
                 if key in attrs:
@@ -150,11 +158,11 @@ class molAnalyzer:
             return
         
 
-def write_toH5(txtfile, h5group):
+def write_toH5(txtfile, h5group, dataset_name="pdb"):
     if txtfile.endswith(".pdb"):
         with open(txtfile, "r") as pdb_file:
             pdbcontent = pdb_file.read()
-            h5group.create_dataset("pdb", data=pdbcontent.encode('utf-8'))
+            h5group.create_dataset(dataset_name, data=pdbcontent.encode('utf-8'))
             
     elif txtfile.endswith(".psf"):
         with open(txtfile, "r") as psf_file:
