@@ -237,11 +237,9 @@ def plot_solidFraction_RMSF(h5metrics, output_dir):
         h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{sample}/cath_dataset_{sample}.h5", "r")
         for j, temp in enumerate(['320', '450']):
             encoded_dssp = h5file[sample][f'sims{temp}K'][repl]['dssp']
-            dssp_decoded = np.zeros((encoded_dssp.shape[0], encoded_dssp.shape[1]), dtype=object)
             dssp_decoded_float = np.zeros((encoded_dssp.shape[0], encoded_dssp.shape[1]), dtype=np.float32)
             for i in range(encoded_dssp.shape[0]):
                 dssp_decoded_float[i] = [floatMap[el.decode()] for el in encoded_dssp[i]]
-                dssp_decoded[i] = [el.decode() for el in encoded_dssp[i]]
             solid_fraction_time = np.logical_or(dssp_decoded_float == 0, dssp_decoded_float == 1).mean(axis=0)
             rmsf = h5file[sample][f'sims{temp}K'][repl]['rmsf'][:]
             ax = axs[ax_i, j]
@@ -254,16 +252,84 @@ def plot_solidFraction_RMSF(h5metrics, output_dir):
         h5file.close()
     plt.tight_layout()
     plt.savefig(opj(output_dir, "solidFraction_RMSF.png"), dpi=600)
+
+def recover_trajecoryNames_rmsd_based(h5metrics, output_dir, rmsd_oi=5.0):
+    with open(opj(output_dir, f"outliers_{rmsd_oi}.txt"), "w") as f:
+        for pdb in tqdm(h5metrics.keys(), total=len(h5metrics.keys()), desc="Recover trajectories"):
+            for temp in h5metrics[pdb].keys():
+                for repl in h5metrics[pdb][temp].keys():
+                    if h5metrics[pdb][temp][repl]['rmsd'][-1] > rmsd_oi:
+                        # add to the file the pdb, temp, repl
+                        f.write(f"{pdb} {temp} {repl}\n")
+
+def plot_alpha_beta_fraction_vs_numResidues(h5metrics, output_dir, mean_across='all', temps=None):
+    """ Plot the fraction of alpha+beta structure vs the number of residues in the protein,
+    this is done for all the proteins in the dataset. One value of the fraction of alpha+beta per domain
+    and one value of the number of residues per domain. The mean of secondary structure could be computed
+    across all the replicas (all) or just a replica of interest (replica id). If temps is None, one plot for 
+    each temperature is generated, otherwise, the plot is generated for the temperatures in the list temps."""
+    
+    np.random.seed(2)
+       
+    # floatMap = {"H": 0, "B": 1, "E": 2, "G": 3, "I": 4, "T": 5, "S": 6, " ": 7} # 8 type differentiation
+    
+    # helices are defined as 8 because when the mean is computed across all the replicas, different numFrames are considered 
+    # the max num of frames is used to build the array of decoded dssp, and then the 0 need to be removed
+    floatMap = {"H": 8, "B": 1, "E": 1, "G": 8, "I": 8, "T": 2, "S": 2, " ": 2} # 3 type differentiation
+    temps = ['320', '348', '379', '413', '450'] if temps is None else temps
+    replicas = ['0', '1', '2', '3', '4'] if mean_across == 'all' else ['1']
+    
+    nPlots = len(temps)
+    nCols = nPlots if nPlots < 3 else 3
+    nRows = math.ceil(nPlots / nCols)
+    fig, axs = plt.subplots(nrows=nRows, ncols=nCols, figsize=(nCols * 5, nRows * 5))
+    fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.35, wspace=0.3)
+    axs = axs.flatten() if nPlots > 1 else [axs]
+    for temp_i, temp in enumerate(temps):
+        print(f"Temperature: {temp}")
+        all_alpha_beta_mean = []
+        all_numResidues = []
+        for pdb_idx, pdb in tqdm(enumerate(h5metrics.keys()), total=len(h5metrics.keys()), desc="Solid fraction vs numResidues"):
+            h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
+            max_num_frames = max([h5metrics[pdb][temp][repl].attrs['numFrames'] for repl in replicas]) # used to build the array of decoded dssp
+            for repl_i, repl in enumerate(replicas):
+                encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
+                # dssp_decoded_float shape (numFrames, numResidues)
+                dssp_decoded_float = np.zeros((len(replicas), max_num_frames, encoded_dssp.shape[1]), dtype=np.float32)
+                for frame_i in range(encoded_dssp.shape[0]):
+                    # we use the axis 0 to store the value of the fraction of alpha+beta structure per replica, 
+                    dssp_decoded_float[repl_i, frame_i, :] = [floatMap[el.decode()] for el in encoded_dssp[frame_i]]
+                    
+            # drop zeros from the array, they are the frames that are not present in all the replicas
+            dssp_decoded_float = dssp_decoded_float.flatten()
+            dssp_decoded_float = dssp_decoded_float[dssp_decoded_float != 0]
+            solid_fraction_time = np.logical_or(dssp_decoded_float == 8, dssp_decoded_float == 1).mean() # 8 is the value of helices, 1 is the value of beta strands
+            all_alpha_beta_mean.append(solid_fraction_time)
+            all_numResidues.append(h5metrics[pdb].attrs['numResidues'])
+            h5file.close()
+                
+        # plot the data
+        ax = axs[temp_i]
+        ax.scatter(all_numResidues, all_alpha_beta_mean, s=2.5)
+        ax.set_title(f"{temp}K")
+        ax.set_xlabel("Number of residues")
+        ax.set_ylabel("Fraction of α+β structure")
+        # save also the single plot
+        plt.savefig(opj(output_dir, f"all_dataset_plots_studycase/solidFraction_vs_numResidues_{temp}K.png"), dpi=600)
+        
+    axs[-1].axis('off')
+    plt.savefig(opj(output_dir, f"all_dataset_plots_studycase/solidFraction_vs_numResidues_replica_{mean_across}_{len(temps)}Temps.png"), dpi=600)
             
 if __name__ == "__main__":
     output_dir = "figures/"
     h5metrics = h5py.File("/shared/antoniom/buildCATHDataset/dataloader_h5/mdcath_analysis.h5", "r")
-    sns.set(context="paper", style="white", font="sans-serif", font_scale=1.5, color_codes=True, rc=None)
+    sns.set(context="paper", style="white", font="sans-serif", font_scale=1.5, color_codes=True, rc=None, palette="muted")
     #plot_len_traj(h5metrics, output_dir)
-    plot_numAtoms(h5metrics, output_dir)
-    plot_numResidues(h5metrics, output_dir)
+    #plot_numAtoms(h5metrics, output_dir)
+    #plot_numResidues(h5metrics, output_dir)
     #plot_rmsd_dist(h5metrics, output_dir, rmsdcutoff=6, yscale="linear")
     #plot_numRes_lenTraj(h5metrics, output_dir)
     #plot_GyrRad_SecondaryStruc(h5metrics, output_dir, numSamples=6, shared_axes=False)
     #plot_solidFraction_RMSF(h5metrics, output_dir)
     #recover_trajecoryNames_rmsd_based(metrics, output_dir, rmsd_oi=5.0)
+    plot_alpha_beta_fraction_vs_numResidues(h5metrics, output_dir, mean_across='all', temps=None)
