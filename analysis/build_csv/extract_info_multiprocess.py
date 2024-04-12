@@ -10,20 +10,12 @@ import numpy as np
 from tqdm import tqdm
 import logging
 import math 
-import time
 import concurrent.futures
 from scheduler import ComputationScheduler
 import tempfile
 
 logger = logging.getLogger('reader')
 logger.setLevel(logging.INFO)
-# all the error messages will be written in the error.log file
-fh = logging.FileHandler('write_csv_error.log')
-rh = logging.FileHandler('write_csv_info.log')
-fh.setLevel(logging.ERROR)
-rh.setLevel(logging.INFO)
-logger.addHandler(fh)
-logger.addHandler(rh)
 
 def readPDBs(pdbFileList):
     pdblist = []
@@ -80,8 +72,16 @@ def read_data(h5file, pdbname):
     it should return a pandas dataframe with the information extracted of shape numResidues, numTemps, NumReplicas
     
     """
+    # Try to use multiple list for each column, then pandas directly 
+    # Also try to use dict instead of pandas dataframe per row
+    # try to pickle instead of csv
     sim_names = ["sims320K", "sims348K", "sims379K", "sims413K", "sims450K"]
-    all_df = []
+    all_replicas = []
+    all_temperatures = []
+    all_times = []
+    all_residues = []
+    all_dssp_labels = []
+    all_domains = []
     with h5py.File(h5file, "r") as h5:
         for sim in (sim_names):
             try:
@@ -90,51 +90,69 @@ def read_data(h5file, pdbname):
                     replica = int(replica)
                     assert replica == j, f"Replica {replica} is not equal to {j}"
                     dssp = h5[f"{pdbname}/{sim}/{replica}/dssp"] # shape (numFrames, numResidues)
-                    for frame in range(dssp.shape[0]):
+                    for frame in tqdm(range(dssp.shape[0]), total=dssp.shape[0], desc=f"frame {pdbname} {sim} {replica}"):
                         for residue in range(dssp.shape[1]):
                             dssp_label = dssp[frame, residue].decode()
-                            new_df = pd.DataFrame({'replica': [replica], 
-                                                    'temperature': [temperature], 
-                                                    'time': [frame], 
-                                                    'residue': [residue], 
-                                                    'dssp_label': [dssp_label], 
-                                                    'domain': [pdbname]},
-                                                    ) 
-                            # convert dssp_label to category
-                            new_df['dssp_label'] = new_df['dssp_label'].astype('category')
-                            all_df.append(new_df)
+                            all_replicas.append(replica)
+                            all_temperatures.append(temperature)
+                            all_times.append(frame)
+                            all_residues.append(residue)
+                            all_dssp_labels.append(dssp_label)
+                            all_domains.append(pdbname)
+                            
             except Exception as e:
                 logger.error(f"{e} processing {pdbname} {sim} {replica}")
                 continue
-    tmp_df = pd.concat(all_df, axis=0, ignore_index=True)
-    return tmp_df
+            
+    tmp_dict = {"Replica": all_replicas, 
+                           "Temperature": all_temperatures, 
+                           "Time": all_times, 
+                           "Residue": all_residues, 
+                           "DSSP State": all_dssp_labels, 
+                           "Domain": all_domains}
+    return tmp_dict
   
 def run(scheduler, batch_idx, data_dir, output_dir='.'):
     """Extract information from the mdCATH dataset."""
     pbbIndices = scheduler.process(batch_idx)
+    dict_info = {'Replica': [], 'Temperature': [], 'Time': [], 'Residue': [], 'DSSP State': [], 'Domain': []}
     for i, pdb in tqdm(enumerate(pbbIndices), total=len(pbbIndices), desc="processing"):                
         resfile = opj(output_dir, f"mdCATH_info_{pdb}.csv") #{batch_idx}.csv")
         h5_file = opj(data_dir, pdb, f"cath_dataset_{pdb}.h5")
         if not os.path.exists(h5_file):
             logger.error(f"File {h5_file} does not exist")
             continue
-        domain_df = read_data(h5_file, pdb) 
-        if i == 0:
-            df = domain_df.copy()
-        else:
-            df = pd.concat([df, domain_df], axis=0) 
+        dict_i = read_data(h5_file, pdb)
+        for k in dict_i.keys():
+            dict_info[k].extend(dict_i[k])
+        # free memory
+        del dict_i
+        
+    df = pd.DataFrame(dict_info)
+    df['DSSP State'] = df['DSSP State'].astype('category')
     df.to_csv(resfile)
+    # delete the dataframe to free memory
+    del df
     logger.info(f"{pdb} done!! Successfully written {resfile} for batch {batch_idx}")
             
 def launch():
     data_dir = "/workspace7/antoniom/mdCATH/"
     output_dir = "/workspace7/antoniom/csv_info_mdCATH"
+    
+    # all the error messages will be written in the error.log file
+    fh = logging.FileHandler(opj(output_dir,'error.log'))
+    rh = logging.FileHandler(opj(output_dir,'info.log'))
+    fh.setLevel(logging.ERROR)
+    rh.setLevel(logging.INFO)
+    logger.addHandler(fh)
+    logger.addHandler(rh)
+    
     pdb_list_file = '/shared/antoniom/buildCATHDataset/accetptedPDBs.txt'
     pdb_list = readPDBs(pdb_list_file)
     batch_size = 1
     toRunBatches = None
     startBatch = None   
-    max_workers = 24
+    max_workers = 18
     # Get a number of batches
     numBatches = int(math.ceil(len(pdb_list) / batch_size))
     logger.info(f"Batch size: {batch_size}")
