@@ -406,11 +406,21 @@ def plot_time_vs_ssFraction_respectToStart(h5metrics, output_dir, mean_across='a
     
     plt.savefig(opj(output_dir, f"all_dataset_plots_studycase/solidFraction_vs_time_{mean_across}_{len(temps)}Temps.png"), dpi=600)
 
-def plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=1, num_pdb=None):
 
+def check_values(ssfraction_in_time, threshold=0.5):
+    """ Check if the values are changing in the ssfraction_in_time array, if the difference between the values is less than the threshold
+    the function returns False, otherwise True and the index of the first value that is different from the previous one."""
+    for i in range(1, len(ssfraction_in_time)):
+        if abs(ssfraction_in_time[i] - ssfraction_in_time[i-1]) > threshold:
+            return True, i
+    return False, None
+    
+    
+def plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=1, num_pdb=None):
+    np.random.seed(42)
     # Load superfamily information from JSON
     super_family_json = json.load(open("/shared/antoniom/buildCATHDataset/support/cath_info.json", "r"))
-    floatMap = {"H": 8, "B": 1, "E": 1, "G": 8, "I": 8, "T": 2, "S": 2, " ": 2} # DSSP to float map for alpha and beta structures
+    floatMap = {"H": 0, "B": 1, "E": 1, "G": 0, "I": 0, "T": 2, "S": 2, " ": 2} # DSSP to float map for alpha and beta structures
 
     # Default temperatures if not provided
     temps = ['320', '348', '379', '413', '450'] if temps is None else temps
@@ -424,72 +434,182 @@ def plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_acr
     nCols = len(superfamilies)
 
     # Setup figure and axes
-    fig, axs = plt.subplots(nrows=nRows, ncols=nCols, figsize=(nCols * 5, nRows * 5))
-    fig.subplots_adjust(hspace=0.35, wspace=0.35)
+    fig, axs = plt.subplots(nrows=nRows, ncols=nCols, figsize=(nCols * 6, nRows * 5))
+    fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.4, wspace=0.4)
 
     # Color map and labels for superfamilies
     colors = {1: 'green', 2: 'blue', 3: 'red', 4: 'purple'}
     superfamiliy_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
 
+    # shuffle the pdb list if num_pdb is not None
+    pdb_list = list(h5metrics.keys()) if num_pdb is None else np.random.choice(list(h5metrics.keys()), len(h5metrics.keys()), replace=False)
     # Iterate over temperatures and superfamilies
     for row, temp in enumerate(temps):
         print(f"Temperature: {temp}")
         for col, sf in enumerate(superfamilies):
             ax = axs[row, col]
-            all_alpha_beta_mean = []
-            # Iterate over PDB entries
-            for pdb_idx, pdb in tqdm(enumerate(h5metrics.keys()), total=num_pdb if num_pdb is not None else len(h5metrics.keys()), desc=f"Solid Fraction vs Time {superfamiliy_labels[sf]}"):
-                if num_pdb is not None and pdb_idx >= num_pdb:
-                    break  # Exit loop if reached the specified number of PDBs
+            accepted_superfamilies_domains = 0
+            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Solid Fraction vs Time {superfamiliy_labels[sf]}"):
+                if num_pdb is not None and accepted_superfamilies_domains >= num_pdb:
+                    break  # Exit loop if reached the specified number of PDBs for the superfamily
                 super_family_id = int(super_family_json[pdb]['superfamily_id'].split(".")[0])
                 if super_family_id != sf:
                     continue  # Skip non-matching superfamilies
-
-                # Process H5 files
-                h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
-                max_num_frames = max([h5metrics[pdb][temp][repl].attrs['numFrames'] for repl in replicas])
-
-                # Initialize and decode DSSP information
-                dssp_decoded_float = np.zeros((len(replicas), max_num_frames), dtype=np.float32)
-                for repl_i, repl in enumerate(replicas):
-                    encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
-                    for frame_i in range(encoded_dssp.shape[0]):
-                        dssp_decoded_float[repl_i, frame_i] = np.mean([floatMap[el.decode()] for el in encoded_dssp[frame_i]])
                 
-                # Compute the mean across time and normalize
-                mean_across_time = np.nanmean(dssp_decoded_float, axis=0)
-                normalized_ss_time = mean_across_time / mean_across_time[0]
-                all_alpha_beta_mean.append(normalized_ss_time)
+                accepted_superfamilies_domains += 1
 
-                h5file.close()
-            
-            print(f"Number of proteins in {superfamiliy_labels[sf]} superfamily : {len(all_alpha_beta_mean)}")
-            
-            # Plotting
-            for mean_curve in all_alpha_beta_mean:
-                ax.plot(np.arange(0, len(mean_curve), 1)[::skipFrames], mean_curve[::skipFrames], alpha=0.5, color=colors[sf])
-
+                # Process H5 files to get the dssp dataset
+                h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
+                numResidues = h5metrics[pdb].attrs['numResidues']
+                for repl in replicas:
+                    encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
+                    assert encoded_dssp.shape[1] == numResidues, f"Number of residues mismatch for {pdb} {temp}K"
+                    dssp_decoded_float = np.zeros((encoded_dssp.shape[0], encoded_dssp.shape[1]), dtype=np.float32)
+                    for frame_i in range(encoded_dssp.shape[0]):
+                        dssp_decoded_float[frame_i, :] = [floatMap[el.decode()] for el in encoded_dssp[frame_i]]
+                    
+                    solid_fraction = np.logical_or(dssp_decoded_float == 0, dssp_decoded_float == 1) # return a boolean array
+                    mean_across_time = np.nanmean(solid_fraction, axis=1) # mean across the residues, shape (numFrames,)
+                    assert not np.isnan(mean_across_time).any(), f"NaN values in the mean_across_time for {pdb} {temp}K"
+                    # If the first value is zero, the division will give a NaN, so we need to check this
+                    if mean_across_time[0] == 0:
+                        Warning(f"First value of the solid fraction is zero for {pdb} {temp}K replica {repl}, the trajectory will be skipped!")
+                        continue
+                    normalized_ss_time = mean_across_time / mean_across_time[0]
+                    ax.plot(np.arange(0, len(normalized_ss_time), skipFrames), normalized_ss_time[::skipFrames], alpha=0.2, color=colors[sf])              
+                
             # Axis labels and title
             if col == 0:
-                ax.set_ylabel(f"{temp}K\nFraction of α+β structure")
+                ax.set_ylabel(f"{temp}K\nFraction of α+β structure") 
+            else:
+                ax.tick_params(axis='y', which='both', left=True, right=False, labelleft=False)
             if row == nRows - 1:
                 ax.set_xlabel("Time (ns)")
+            else:
+                ax.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=False)
 
             ax.set_title(superfamiliy_labels[sf] if row == 0 else "")
-            ax.set_xlim(0, 500)
+            ax.set_xlim(0, 501)
     
     axs = axs.flatten()
     # set the ylim to be the same across all the plots
-    ymax = max([ax.get_ylim()[1] for ax in axs]) + 0.1
+    #ymax = max([ax.get_ylim()[1] for ax in axs]) + 0.1
     for ax in axs:
-        ax.set_ylim(-0.1, ymax)
+        ax.set_ylim(-0.001, 2.1)
+        
     
     plt.tight_layout()
     # Save the plot
-    plt.savefig(opj(output_dir, f"solidFraction_vs_time_{mean_across}_{len(temps)}Temps_{len(superfamilies)}Superfamilies.png"), dpi=300)
+    plt.savefig(opj(output_dir, f"solidFraction_vs_time_{num_pdb}Samples_4Superfamilies_.png"), dpi=300)
     plt.close()
 
-   
+def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, num_pdb=None):
+    """ Plot on x_axis the time in ns and on y_axis the fraction of alpha+beta structure respect to the start of the simulation, 
+    one plot for each temperature, the mean across all the replicas is computed if the mean_across is set to 'all', otherwise only one replica is considered.
+    Each trajectory will be plotted with a different color, the color is assigned based on the superfamily of the protein.
+    Params:
+    - h5metrics: h5 file with the metrics of the dataset
+    - output_dir: directory where to save the plots
+    - mean_across: 'all' or ['replica id'] # the replica id is a string, and len of the list should be 1
+    - temps: list of temperatures to consider, if None, all the temperatures are considered
+    - num_pdb: number of pdb to consider, if None all the pdb are considered otherwise the the h5metrics.keys() are shuffled and for 
+        the each superfamily num_pdb are considered.
+    """
+    
+    np.random.seed(7)
+    # Load superfamily information from JSON
+    super_family_json = json.load(open("/shared/antoniom/buildCATHDataset/support/cath_info.json", "r"))
+    floatMap = {"H": 0, "B": 1, "E": 1, "G": 0, "I": 0, "T": 2, "S": 2, " ": 2} # DSSP to float map for alpha and beta structures
+
+    # Default temperatures if not provided
+    temps = ['320', '348', '379', '413', '450'] if temps is None else temps
+    
+    # Get the replica settings from function argument
+    replicas = get_replicas(mean_across)
+    
+    # Determine number of plots based on the number of superfamilies
+    superfamilies = sorted({int(super_family_json[pdb]['superfamily_id'].split(".")[0]) for pdb in h5metrics.keys() if pdb in super_family_json.keys()})
+    nRows = len(temps)
+    nCols = len(superfamilies)
+
+    # Setup figure and axes
+    fig, axs = plt.subplots(nrows=nRows, ncols=nCols, figsize=(nCols * 6, nRows * 5))
+    fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.4, wspace=0.4)
+
+    superfamiliy_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
+
+    pdb_list = list(h5metrics.keys()) if num_pdb is None else np.random.choice(list(h5metrics.keys()), len(h5metrics.keys()), replace=False)
+    
+    # Iterate over temperatures and superfamilies
+    for row, temp in enumerate(temps):
+        print(f"Temperature: {temp}")
+        for col, sf in enumerate(superfamilies):
+            ax = axs[row, col] 
+            # initialize the arrays to store the data for the 2D histogram
+            time_points = []
+            all_alpha_beta = []
+            # Iterate over PDB entries
+            accepted_superfamilies_domains = 0
+            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Solid Fraction vs Time {superfamiliy_labels[sf]}"):
+                if num_pdb is not None and accepted_superfamilies_domains >= num_pdb:
+                    break  # Exit loop if reached the specified number of PDBs for the superfamily
+                super_family_id = int(super_family_json[pdb]['superfamily_id'].split(".")[0])
+                if super_family_id != sf:
+                    continue  # Skip non-matching superfamilies
+                
+                accepted_superfamilies_domains += 1
+                # Process H5 files to get the dssp dataset
+                h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
+                numResidues = h5metrics[pdb].attrs['numResidues']
+                for repl in replicas:
+                    encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
+                    assert encoded_dssp.shape[1] == numResidues, f"Number of residues mismatch for {pdb} {temp}K"
+                    dssp_decoded_float = np.zeros((encoded_dssp.shape[0], encoded_dssp.shape[1]), dtype=np.float32)
+                    for frame_i in range(encoded_dssp.shape[0]):
+                        # we use the axis 0 to store the value of the fraction of alpha+beta structure per replica, 
+                        dssp_decoded_float[frame_i, :] = [floatMap[el.decode()] for el in encoded_dssp[frame_i]]
+                
+                    solid_fraction = np.logical_or(dssp_decoded_float == 8, dssp_decoded_float == 1) # return a boolean array
+                    mean_across_time = np.nanmean(solid_fraction, axis=1) # mean across the residues, shape (numFrames,)
+                    assert not np.isnan(mean_across_time).any(), f"NaN values in the mean_across_time for {pdb} {temp}K"
+                    
+                    if mean_across_time[0] == 0:
+                        Warning(f"First value of the solid fraction is zero for {pdb} {temp}K replica {repl}, the trajectory will be skipped!")
+                        continue
+                    
+                    # Compute the mean across time and normalize
+                    normalized_ss_time = mean_across_time / mean_across_time[0] # shape (numFrames,)
+                    
+                    # Extend the time_points and all_alpha_beta arrays to store the data for the 2D histogram
+                    time_points.extend(np.arange(0, len(normalized_ss_time), 1))
+                    all_alpha_beta.extend(normalized_ss_time)
+
+                h5file.close()
+            
+            print(f"Number of proteins in {superfamiliy_labels[sf]} superfamily : {accepted_superfamilies_domains}")         
+            
+            # Create 2D histogram
+            hist, xedges, yedges = np.histogram2d(time_points, all_alpha_beta, bins=80, range=[[0, 500], [0, 2]], density=True)
+            ax.imshow(hist.T, origin='lower', aspect='auto', extent=(xedges[0], xedges[-1], yedges[0], yedges[-1]), cmap='viridis')
+
+            # Axis labels and title
+            if col == 0:
+                ax.set_ylabel(f"{temp}K\nFraction of α+β structure") 
+            else:
+                ax.tick_params(axis='y', which='both', left=True, right=False, labelleft=False)
+            if row == nRows - 1:
+                ax.set_xlabel("Time (ns)")
+            else:
+                ax.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=False)
+
+            ax.set_title(superfamiliy_labels[sf] if row == 0 else "")
+            ax.set_xlim(0, 500)      
+    
+    plt.tight_layout()
+    # Save the plot
+    plt.savefig(opj(output_dir, f"Grid_SolidFraction_vs_time_{num_pdb}Samples_4Superfamilies_.png"), dpi=300)
+    plt.close()
+    
 if __name__ == "__main__":
     output_dir = "figures/"
     h5metrics = h5py.File("/shared/antoniom/buildCATHDataset/dataloader_h5/mdcath_analysis.h5", "r")
@@ -504,4 +624,5 @@ if __name__ == "__main__":
     #recover_trajecoryNames_rmsd_based(metrics, output_dir, rmsd_oi=5.0)
     #plot_alpha_beta_fraction_vs_numResidues(h5metrics, output_dir, mean_across='all', temps=None)
     #plot_time_vs_ssFraction_respectToStart(h5metrics, output_dir, mean_across=['1'], temps=None, skipFrames=5)
-    plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=5, num_pdb=None)
+    #plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=1, num_pdb=10)
+    plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, num_pdb=10)
