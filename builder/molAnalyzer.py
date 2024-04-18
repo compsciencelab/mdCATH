@@ -188,6 +188,16 @@ class molAnalyzer:
         
 
 def write_toH5(txtfile, h5group, dataset_name="pdb"):
+    """ Write the content of the txt file to the h5 group as a dataset. 
+    Parameters
+    ----------
+    txtfile : str
+        The path to the txt file to be written in the h5 group (pdb or psf file)
+    h5group : h5py.Group
+        The group of the h5 file where the dataset will be written
+    dataset_name : str
+        The name of the dataset to be written in the h5 group, used just for pdb extension. It can be either "pdb" or "pdbProteinAtoms"
+    """
     if txtfile.endswith(".pdb"):
         with open(txtfile, "r") as pdb_file:
             if dataset_name == "pdb":
