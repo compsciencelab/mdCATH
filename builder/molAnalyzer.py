@@ -103,10 +103,8 @@ class molAnalyzer:
 
         # traj attributes
         self.trajAttrs["numFrames"] = self.traj.n_frames
-        self.trajAttrs["trajLength"] = self.traj.n_frames * 1 # ns, gpugrid computation with reportInterval every 1 ns
-        self.trajAttrs["box"] = self.traj.unitcell_vectors[0] # the box is the same for all frames, so we take the first one
         
-        self.molLogger.info(f"Trajectory length: {self.trajAttrs['trajLength']} ns")         
+        self.molLogger.info(f"Trajectory length: {self.trajAttrs['numFramse']} ns")         
     
     def readDCD(self, dcdFiles, batch_idx):
         try:
