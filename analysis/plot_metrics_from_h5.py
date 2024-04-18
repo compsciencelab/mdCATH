@@ -80,6 +80,22 @@ def plot_rmsd_dist(h5metrics, output_dir, rmsdcutoff=6, yscale="linear"):
     plt.tight_layout()
     plt.savefig(opj(output_dir, f"rmsd{'_log' if yscale == 'log' else ''}.png"), dpi=600)
 
+def plot_rmsf_dist(h5metrics, output_dir, yscale="linear", temp_oi=None):
+    data = []
+    temperatures = ['320', '348', '379', '413', '450'] if temp_oi is None else [temp_oi]
+    for pdb in tqdm(h5metrics.keys(), total=len(h5metrics.keys()), desc="RMSF"):
+        for temp in temperatures:
+            for repl in h5metrics[pdb][temp].keys():
+                data.extend(h5metrics[pdb][temp][repl]['rmsf'][:])
+    plt.figure()
+    plt.hist(data, bins=50)
+    plt.xlabel("RMSF (nm)")
+    plt.ylabel("Counts")
+    if yscale == "log":
+        plt.yscale("log")
+    plt.tight_layout()
+    plt.savefig(opj(output_dir, f"rmsf{'_log' if yscale == 'log' else ''}.png"), dpi=200)
+    
 def plot_numRes_lenTraj(h5metrics, output_dir):
     data = []
     for pdb in tqdm(h5metrics.keys(), total=len(h5metrics.keys()), desc="Number of residues vs Trajectory length"):
@@ -235,20 +251,25 @@ def plot_solidFraction_RMSF(h5metrics, output_dir):
     # floatMap = {"H": 0, "B": 1, "E": 2, "G": 3, "I": 4, "T": 5, "S": 6, " ": 7} # 8 type differentiation
     floatMap = {"H": 0, "B": 1, "E": 1, "G": 0, "I": 0, "T": 2, "S": 2, " ": 2} # 3 type differentiation
     for ax_i, sample in tqdm(enumerate(samples), total=len(samples), desc="Solid fraction vs RMSF"):
-        h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{sample}/cath_dataset_{sample}.h5", "r")
+        h5file = h5py.File(f"/workspace3/mdCATH_final/mdcath_dataset_{sample}.h5", "r")
         for j, temp in enumerate(['320', '450']):
-            encoded_dssp = h5file[sample][f'sims{temp}K'][repl]['dssp']
+            encoded_dssp = h5file[sample][temp][repl]['dssp']
             dssp_decoded_float = np.zeros((encoded_dssp.shape[0], encoded_dssp.shape[1]), dtype=np.float32)
             for i in range(encoded_dssp.shape[0]):
                 dssp_decoded_float[i] = [floatMap[el.decode()] for el in encoded_dssp[i]]
             solid_fraction_time = np.logical_or(dssp_decoded_float == 0, dssp_decoded_float == 1).mean(axis=0)
-            rmsf = h5file[sample][f'sims{temp}K'][repl]['rmsf'][:]
+            rmsf = h5file[sample][temp][repl]['rmsf'][:]
             ax = axs[ax_i, j]
             ax.scatter(rmsf, solid_fraction_time, c=np.arange(len(rmsf)), cmap='rainbow')
             ax.set_title(f"{sample} {temp}K")
             ax.set_xlabel("RMSF (nm)")
             ax.set_ylabel("Fraction of α+β structure")
-            ax.set_xlim(0, 3.5)
+            # column zero set xlim 
+            if j == 0:
+                ax.set_xlim(0, 1)
+            else:
+                ax.set_xlim(0, 2.6)
+                ax.axvline(x=1, color='grey', linestyle='--')
             ax.set_ylim(-0.1, 1.1)
         h5file.close()
     plt.tight_layout()
@@ -299,12 +320,12 @@ def plot_alpha_beta_fraction_vs_numResidues(h5metrics, output_dir, mean_across='
         all_alpha_beta_mean = []
         all_numResidues = []
         for pdb_idx, pdb in tqdm(enumerate(h5metrics.keys()), total=len(h5metrics.keys()), desc="Solid fraction vs numResidues"):
-            h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
+            h5file = h5py.File(f"/workspace3/mdCATH_final/mdcath_dataset_{pdb}.h5", "r")
             max_num_frames = max([h5metrics[pdb][temp][repl].attrs['numFrames'] for repl in replicas]) # used to build the array of decoded dssp
             # dssp_decoded_float shape (len(replicas), numFrames, numResidues)
             dssp_decoded_float = np.zeros((len(replicas), max_num_frames, encoded_dssp.shape[1]), dtype=np.float32)
             for repl_i, repl in enumerate(replicas):
-                encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
+                encoded_dssp = h5file[pdb][temp][repl]['dssp']
                 for frame_i in range(encoded_dssp.shape[0]):
                     # we use the axis 0 to store the value of the fraction of alpha+beta structure per replica, 
                     dssp_decoded_float[repl_i, frame_i, :] = [floatMap[el.decode()] for el in encoded_dssp[frame_i]]
@@ -358,13 +379,13 @@ def plot_time_vs_ssFraction_respectToStart(h5metrics, output_dir, mean_across='a
         all_alpha_beta_mean = []
         super_families = []
         for pdb_idx, pdb in tqdm(enumerate(h5metrics.keys()), total=len(h5metrics.keys()), desc="Solid fraction vs numResidues"):
-            h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
+            h5file = h5py.File(f"/workspace3/mdCATH_final/mdcath_dataset_{pdb}.h5", "r")
             numResidues = h5metrics[pdb].attrs['numResidues']
             max_num_frames = max([h5metrics[pdb][temp][repl].attrs['numFrames'] for repl in replicas]) # used to build the array of decoded dssp
             # dssp_decoded_float shape (len(replicas), numFrames, numResidues)
             dssp_decoded_float = np.zeros((len(replicas), max_num_frames, numResidues), dtype=np.float32)
             for repl_i, repl in enumerate(replicas):
-                encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
+                encoded_dssp = h5file[pdb][temp][repl]['dssp']
                 for frame_i in range(encoded_dssp.shape[0]):
                     # we use the axis 0 to store the value of the fraction of alpha+beta structure per replica, 
                     dssp_decoded_float[repl_i, frame_i, :] = [floatMap[el.decode()] for el in encoded_dssp[frame_i]]
@@ -406,7 +427,6 @@ def plot_time_vs_ssFraction_respectToStart(h5metrics, output_dir, mean_across='a
     
     plt.savefig(opj(output_dir, f"all_dataset_plots_studycase/solidFraction_vs_time_{mean_across}_{len(temps)}Temps.png"), dpi=600)
 
-
 def check_values(ssfraction_in_time, threshold=0.5):
     """ Check if the values are changing in the ssfraction_in_time array, if the difference between the values is less than the threshold
     the function returns False, otherwise True and the index of the first value that is different from the previous one."""
@@ -414,8 +434,7 @@ def check_values(ssfraction_in_time, threshold=0.5):
         if abs(ssfraction_in_time[i] - ssfraction_in_time[i-1]) > threshold:
             return True, i
     return False, None
-    
-    
+      
 def plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=1, num_pdb=None):
     np.random.seed(42)
     # Load superfamily information from JSON
@@ -459,10 +478,10 @@ def plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_acr
                 accepted_superfamilies_domains += 1
 
                 # Process H5 files to get the dssp dataset
-                h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
+                h5file = h5py.File(f"/workspace3/mdCATH_final/mdcath_dataset_{pdb}.h5", "r")
                 numResidues = h5metrics[pdb].attrs['numResidues']
                 for repl in replicas:
-                    encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
+                    encoded_dssp = h5file[pdb][temp][repl]['dssp']
                     assert encoded_dssp.shape[1] == numResidues, f"Number of residues mismatch for {pdb} {temp}K"
                     dssp_decoded_float = np.zeros((encoded_dssp.shape[0], encoded_dssp.shape[1]), dtype=np.float32)
                     for frame_i in range(encoded_dssp.shape[0]):
@@ -559,10 +578,10 @@ def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mea
                 
                 accepted_superfamilies_domains += 1
                 # Process H5 files to get the dssp dataset
-                h5file = h5py.File(f"/workspace7/antoniom/mdCATH/{pdb}/cath_dataset_{pdb}.h5", "r")
+                h5file = h5py.File(f"/workspace3/mdCATH_final/mdcath_dataset_{pdb}.h5", "r")
                 numResidues = h5metrics[pdb].attrs['numResidues']
                 for repl in replicas:
-                    encoded_dssp = h5file[pdb][f'sims{temp}K'][repl]['dssp']
+                    encoded_dssp = h5file[pdb][temp][repl]['dssp']
                     assert encoded_dssp.shape[1] == numResidues, f"Number of residues mismatch for {pdb} {temp}K"
                     dssp_decoded_float = np.zeros((encoded_dssp.shape[0], encoded_dssp.shape[1]), dtype=np.float32)
                     for frame_i in range(encoded_dssp.shape[0]):
@@ -613,7 +632,7 @@ def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mea
     
 if __name__ == "__main__":
     output_dir = "figures/"
-    h5metrics = h5py.File("/shared/antoniom/buildCATHDataset/dataloader_h5/mdcath_analysis.h5", "r")
+    h5metrics = h5py.File("../all_data_unique_h5/mdcath_analysis.h5", "r")
     sns.set(context="paper", style="white", font="sans-serif", font_scale=1.5, color_codes=True, rc=None, palette="muted")
     plot_len_traj(h5metrics, output_dir)
     plot_numAtoms(h5metrics, output_dir)
@@ -627,3 +646,4 @@ if __name__ == "__main__":
     plot_time_vs_ssFraction_respectToStart(h5metrics, output_dir, mean_across=['1'], temps=None, skipFrames=5)
     plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=1, num_pdb=10)
     plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, num_pdb=50)
+    plot_rmsf_dist(h5metrics, output_dir, yscale="log", temp_oi='450')
