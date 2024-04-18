@@ -90,6 +90,14 @@ class molAnalyzer:
         self.metricAnalysis["gyrationRadius"] = md.compute_rg(self.traj)
         self.last_idx_by_rmsd= np.where(self.metricAnalysis["rmsd"] < RMSD_CUTOFF)[0][-1]
         self.molLogger.info(f"Number of frames accepted after rmsd cutoff: {len(self.rmsd_accepted_frames)} of {self.traj.n_frames}")
+        # the rmsf is computed for the CA atoms only, superposed to the first frame and respect to the average position
+        idxsCA = self.traj.top.select("name CA")
+        rmsf_traj_superpose = self.traj.copy()
+        # cut the trajectory to the last frame accepted by the rmsd, otherwise the average position will be influenced by the frames with PBC jumps
+        rmsf_traj_superpose = rmsf_traj_superpose.xyz[:self.last_idx_by_rmsd, :, :]
+        rmsf_traj_superpose.superpose(rmsf_traj_superpose, 0, atom_indices=idxsCA)
+        avg_xyz = np.mean(rmsf_traj_superpose.xyz[:, idxsCA, :], axis=0)
+        self.metricAnalysis["rmsf"] = np.sqrt(3*np.mean((rmsf_traj_superpose.xyz[:, rmsf_traj_superpose, :] - avg_xyz)**2, axis=(0,2)))
         self.metricAnalysis["dssp"] = encodeDSSP(md.compute_dssp(self.traj, simplified=False))
         
         # traj attributes
