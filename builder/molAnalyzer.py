@@ -31,8 +31,12 @@ class molAnalyzer:
         self.pdbFile = pdbFile
         self.pdbName = os.path.basename(pdbFile).split(".")[0]
         self.mol = Molecule(pdbFile)
+        self.mol.read(pdbFile.replace(".pdb", ".psf"))
         self.mol.filter("protein")
         self.pdb_filtered_name = f"{processed_path}/{self.pdbName}_protein_filter.pdb"
+        if os.path.exists(self.pdb_filtered_name):
+            self.molLogger.warning(f"Filtered pdb file {self.pdb_filtered_name} already exists, it will be overwritten")
+            os.remove(self.pdb_filtered_name)
         self.mol.write(self.pdb_filtered_name)
         if filter is not None:
             try:
