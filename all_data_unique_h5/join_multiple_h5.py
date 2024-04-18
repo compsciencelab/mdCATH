@@ -4,12 +4,12 @@ from glob import glob
 import h5py 
 import tempfile
 import shutil
-
+import json
 def sorter(filelist):
     """ returns a sorted list of files based on the last number (batch number) in the filename"""
     sortdict = {}
     for file in filelist:
-        sortdict[file.split('_')[-1].split('.')[0]] = file
+        sortdict[int(file.split('_')[-1].split('.')[0])] = file
     return [sortdict[key] for key in sorted(sortdict.keys())]
 
 if __name__ == '__main__':
@@ -26,5 +26,5 @@ if __name__ == '__main__':
                             continue
                         merged.copy(h5[key], key)
                         
-        shutil.copyfile(opj(temp, 'merged.h5'), f'{base_filename}.h5')
+        shutil.copyfile(opj(temp, 'merged.h5'), f'./{base_filename}.h5')
         print(f"Merged file saved to {base_filename}.h5')")
