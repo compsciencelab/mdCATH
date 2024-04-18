@@ -99,7 +99,8 @@ class molAnalyzer:
         avg_xyz = np.mean(rmsf_traj_superpose.xyz[:, idxsCA, :], axis=0)
         self.metricAnalysis["rmsf"] = np.sqrt(3*np.mean((rmsf_traj_superpose.xyz[:, rmsf_traj_superpose, :] - avg_xyz)**2, axis=(0,2)))
         self.metricAnalysis["dssp"] = encodeDSSP(md.compute_dssp(self.traj, simplified=False))
-        
+        self.box = self.traj.unitcell_vectors[0] # the box is the same for all frames, so we take the first one
+
         # traj attributes
         self.trajAttrs["numFrames"] = self.traj.n_frames
         self.trajAttrs["trajLength"] = self.traj.n_frames * 1 # ns, gpugrid computation with reportInterval every 1 ns
@@ -164,6 +165,8 @@ class molAnalyzer:
                         replicaGroup.create_dataset(key, data=value)
                     # add attr for the units 
                     replicaGroup[key].attrs["unit"] = "nm" 
+            
+            replicaGroup.create_dataset("box", data=self.box)
   
             # coords and forces are written here using mdtraj function
             replicaGroup.create_dataset("coords", data=self.coords[:acceppted_frames])
