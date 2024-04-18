@@ -118,6 +118,13 @@ class molAnalyzer:
             self.molLogger.error(f"FORCE LOADING ERROR ON BATCH:{batch_idx} | SIM: {os.path.basename(dcdFiles[0]).split('-')[0]}")
             self.molLogger.error(e)
             return None
+        
+        if self.forces.shape != self.coords.shape:
+                self.molLogger.warning(f"Forces {self.forces.shape} and Coords {self.coords.shape} shapes do not match")
+                last_idx = min(self.forces.shape[0], self.coords.shape[0])
+                self.forces = self.forces[:last_idx, :, :]
+                self.coords = self.coords[:last_idx, :, :]
+                self.molLogger.warning(f"Shapes have been adjusted to {self.forces.shape} and {self.coords.shape}")
     
     def write_toH5(self, molGroup, replicaGroup, attrs, datasets):
         """Write the data to the h5 file, according to the properties defined in the input for the dataset
