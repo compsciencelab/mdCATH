@@ -146,6 +146,8 @@ class molAnalyzer:
             write_toH5(self.pdbFile, molGroup, dataset_name="pdb")
             # write the filtered pdb file to the h5 file
             write_toH5(self.pdb_filtered_name, molGroup, dataset_name="pdbProteinAtoms")
+            # write the psf file to the h5 file
+            write_toH5(self.pdbFile.replace(".pdb", ".psf"), molGroup)
             # mol attributes
             for key, value in self.molAttrs.items():
                 if key in attrs:
