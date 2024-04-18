@@ -161,7 +161,11 @@ class molAnalyzer:
 def write_toH5(txtfile, h5group, dataset_name="pdb"):
     if txtfile.endswith(".pdb"):
         with open(txtfile, "r") as pdb_file:
-            pdbcontent = pdb_file.read()
+            if dataset_name == "pdb":
+                pdbcontent = pdb_file.read()
+            elif dataset_name == "pdbProteinAtoms":
+                pdb_lines = [line for line in pdb_file.readlines() if line.startswith("ATOM") or line.startswith("MODEL")]
+                pdbcontent = "".join(pdb_lines)
             h5group.create_dataset(dataset_name, data=pdbcontent.encode('utf-8'))
             
     elif txtfile.endswith(".psf"):
