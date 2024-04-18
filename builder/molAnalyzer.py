@@ -7,6 +7,7 @@ from moleculekit.molecule import Molecule
 from moleculekit.periodictable import periodictable
 
 NM_TO_ANGSTROM = 10
+RMSD_CUTOFF = 20 # nm 
 
 class molAnalyzer:
     def __init__(self, pdbFile, filter=None, file_handler=None, processed_path="."):
@@ -85,10 +86,10 @@ class molAnalyzer:
         self.traj = self.traj.atom_slice(idxsHeavyAtoms)
                     
         self.metricAnalysis["rmsd"] = md.rmsd(self.traj, self.traj, 0)
+        # the cutoff is used to filter the frames where a PBC jump occurred or other artifacts
         self.metricAnalysis["gyrationRadius"] = md.compute_rg(self.traj)
-        # the rmsf is computed for the CA atoms only
-        idxsCA = self.traj.top.select("name CA")  
-        self.metricAnalysis["rmsf"] = md.rmsf(self.traj, self.traj, 0,  atom_indices=idxsCA)
+        self.last_idx_by_rmsd= np.where(self.metricAnalysis["rmsd"] < RMSD_CUTOFF)[0][-1]
+        self.molLogger.info(f"Number of frames accepted after rmsd cutoff: {len(self.rmsd_accepted_frames)} of {self.traj.n_frames}")
         self.metricAnalysis["dssp"] = encodeDSSP(md.compute_dssp(self.traj, simplified=False))
         
         # traj attributes
@@ -139,6 +140,9 @@ class molAnalyzer:
                     molGroup.create_dataset(key, data=value)
                     
         elif molGroup is None and replicaGroup is not None:
+            # the number of frames to be written is the minimum between the last frame accepted by the rmsd and the total number of frames from the traj
+            acceppted_frames = min(self.last_idx_by_rmsd, self.coords.shape[0])
+            
             # replica attributes
             for key, value in self.trajAttrs.items():
                 if key in attrs:
@@ -146,13 +150,16 @@ class molAnalyzer:
             # replica datasets
             for key, value in self.metricAnalysis.items():
                 if key in datasets:
-                    replicaGroup.create_dataset(key, data=value)
+                    if key in ["rmsd", "gyrationRadius", "dssp"]:
+                        replicaGroup.create_dataset(key, data=value[:acceppted_frames])
+                    else:
+                        replicaGroup.create_dataset(key, data=value)
                     # add attr for the units 
                     replicaGroup[key].attrs["unit"] = "nm" 
   
             # coords and forces are written here using mdtraj function
-            replicaGroup.create_dataset("coords", data=self.coords)
-            replicaGroup.create_dataset("forces", data=self.forces)
+            replicaGroup.create_dataset("coords", data=self.coords[:acceppted_frames])
+            replicaGroup.create_dataset("forces", data=self.forces[:acceppted_frames])
             # add units attributes 
             replicaGroup["coords"].attrs["unit"] = "Angstrom"
             replicaGroup["forces"].attrs["unit"] = "kcal/mol/Angstrom"
