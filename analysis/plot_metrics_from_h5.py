@@ -495,12 +495,12 @@ def plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_acr
     # set the ylim to be the same across all the plots
     #ymax = max([ax.get_ylim()[1] for ax in axs]) + 0.1
     for ax in axs:
-        ax.set_ylim(-0.001, 2.1)
+        ax.set_ylim(-0.01, 2.1)
         
     
     plt.tight_layout()
     # Save the plot
-    plt.savefig(opj(output_dir, f"solidFraction_vs_time_{num_pdb}Samples_4Superfamilies_.png"), dpi=300)
+    plt.savefig(opj(output_dir, f"solidFraction_vs_time_{num_pdb}Samples_4Superfamilies.png"), dpi=300)
     plt.close()
 
 def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, num_pdb=None):
@@ -569,8 +569,8 @@ def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mea
                         # we use the axis 0 to store the value of the fraction of alpha+beta structure per replica, 
                         dssp_decoded_float[frame_i, :] = [floatMap[el.decode()] for el in encoded_dssp[frame_i]]
                 
-                    solid_fraction = np.logical_or(dssp_decoded_float == 8, dssp_decoded_float == 1) # return a boolean array
-                    mean_across_time = np.nanmean(solid_fraction, axis=1) # mean across the residues, shape (numFrames,)
+                    solid_fraction = np.logical_or(dssp_decoded_float == 0, dssp_decoded_float == 1) # return a boolean array
+                    mean_across_time = np.mean(solid_fraction, axis=1) # mean across the residues, shape (numFrames,)
                     assert not np.isnan(mean_across_time).any(), f"NaN values in the mean_across_time for {pdb} {temp}K"
                     
                     if mean_across_time[0] == 0:
@@ -589,7 +589,7 @@ def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mea
             print(f"Number of proteins in {superfamiliy_labels[sf]} superfamily : {accepted_superfamilies_domains}")         
             
             # Create 2D histogram
-            hist, xedges, yedges = np.histogram2d(time_points, all_alpha_beta, bins=80, range=[[0, 500], [0, 2]], density=True)
+            hist, xedges, yedges = np.histogram2d(time_points, all_alpha_beta, bins=50, range=[[0, 450], [0, 1.5]], density=True)
             ax.imshow(hist.T, origin='lower', aspect='auto', extent=(xedges[0], xedges[-1], yedges[0], yedges[-1]), cmap='viridis')
 
             # Axis labels and title
@@ -603,26 +603,27 @@ def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mea
                 ax.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=False)
 
             ax.set_title(superfamiliy_labels[sf] if row == 0 else "")
-            ax.set_xlim(0, 500)      
+            ax.set_xlim(0, 450)
+            ax.set_ylim(0, 1.5)
     
     plt.tight_layout()
     # Save the plot
-    plt.savefig(opj(output_dir, f"Grid_SolidFraction_vs_time_{num_pdb}Samples_4Superfamilies_.png"), dpi=300)
+    plt.savefig(opj(output_dir, f"Grid_SolidFraction_vs_time_{num_pdb}Samples_4Superfamilies.png"), dpi=300)
     plt.close()
     
 if __name__ == "__main__":
     output_dir = "figures/"
     h5metrics = h5py.File("/shared/antoniom/buildCATHDataset/dataloader_h5/mdcath_analysis.h5", "r")
     sns.set(context="paper", style="white", font="sans-serif", font_scale=1.5, color_codes=True, rc=None, palette="muted")
-    #plot_len_traj(h5metrics, output_dir)
-    #plot_numAtoms(h5metrics, output_dir)
-    #plot_numResidues(h5metrics, output_dir)
-    #plot_rmsd_dist(h5metrics, output_dir, rmsdcutoff=6, yscale="linear")
-    #plot_numRes_lenTraj(h5metrics, output_dir)
-    #plot_GyrRad_SecondaryStruc(h5metrics, output_dir, numSamples=6, shared_axes=False)
-    #plot_solidFraction_RMSF(h5metrics, output_dir)
-    #recover_trajecoryNames_rmsd_based(metrics, output_dir, rmsd_oi=5.0)
-    #plot_alpha_beta_fraction_vs_numResidues(h5metrics, output_dir, mean_across='all', temps=None)
-    #plot_time_vs_ssFraction_respectToStart(h5metrics, output_dir, mean_across=['1'], temps=None, skipFrames=5)
-    #plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=1, num_pdb=10)
-    plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, num_pdb=10)
+    plot_len_traj(h5metrics, output_dir)
+    plot_numAtoms(h5metrics, output_dir)
+    plot_numResidues(h5metrics, output_dir)
+    plot_rmsd_dist(h5metrics, output_dir, rmsdcutoff=6, yscale="linear")
+    plot_numRes_lenTraj(h5metrics, output_dir)
+    plot_GyrRad_SecondaryStruc(h5metrics, output_dir, numSamples=6, shared_axes=False)
+    plot_solidFraction_RMSF(h5metrics, output_dir)
+    recover_trajecoryNames_rmsd_based(h5metrics, output_dir, rmsd_oi=5.0)
+    plot_alpha_beta_fraction_vs_numResidues(h5metrics, output_dir, mean_across='all', temps=None)
+    plot_time_vs_ssFraction_respectToStart(h5metrics, output_dir, mean_across=['1'], temps=None, skipFrames=5)
+    plot_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, skipFrames=1, num_pdb=10)
+    plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mean_across='all', temps=None, num_pdb=50)
