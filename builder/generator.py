@@ -7,10 +7,10 @@ import h5py
 import shutil
 import logging
 import tempfile
-import numpy as np
 from tqdm import tqdm
 import concurrent.futures
 from os.path import join as opj
+from glob import glob
 from utils import readPDBs, get_args, save_argparse
 from trajManager import TrajectoryFileManager
 from molAnalyzer import molAnalyzer
@@ -49,10 +49,10 @@ def run(scheduler, args, batch_idx):
     for pdb in tqdm(pbbIndices, total=len(pbbIndices), desc="reading PDBs"):    
         with tempfile.TemporaryDirectory() as temp:
             
-            tmpFile = opj(temp, f"cath_dataset_{pdb}.h5")
+            tmpFile = opj(temp, f"mdcath_dataset_{pdb}.h5")
             tmplogfile = tmpFile.replace(".h5", ".txt")
             
-            resFile = opj(args.finaldatasetPath, pdb, f"cath_dataset_{pdb}.h5")
+            resFile = opj(args.finaldatasetPath, pdb, f"mdcath_dataset_{pdb}.h5")
             logFile = opj(args.finaldatasetPath, pdb, f"log_{pdb}_batch{batch_idx}.txt")
             
             pdbLogger = logging.getLogger(f"builder_{pdb}")
@@ -64,21 +64,22 @@ def run(scheduler, args, batch_idx):
             pdbLogger.info(f"Starting the dataset generation for {pdb} and batch {batch_idx}")
             
             if os.path.exists(resFile):
-                logger.info(f"h5py dataset for {pdb} already exists, skipping")
-                continue
-            pdbFilePath = f"{args.pdbDir}/{pdb}.pdb"
+                pdbLogger.info(f"File {resFile} already exists, removing it due to previous errors on the pdb idxs")
+                os.remove(resFile)
+            pdbFilePath = glob(opj(args.gpugridInputsPath, pdb, "*/*.pdb"))[0]
             if not os.path.exists(pdbFilePath):
                 logger.warning(f"{pdb} does not exist")
                 continue
             
             with h5py.File(tmpFile, "w", libver='latest') as h5:
                 
-                h5.attrs["layout"] = "cath-dataset-only-protein"
+                h5.attrs["layout"] = "mdcath-only-protein-v1.0"
                 pdbGroup = h5.create_group(pdb)
-                Analyzer = molAnalyzer(pdbFilePath, args.molFilter, file_handler)
+                os.makedirs(os.path.dirname(resFile), exist_ok=True)
+                Analyzer = molAnalyzer(pdbFilePath, args.molFilter, file_handler, os.path.dirname(resFile))
                 
                 for temp in args.temperatures:
-                    pdbTempGroup = pdbGroup.create_group(f"sims{temp}K")
+                    pdbTempGroup = pdbGroup.create_group(temp)
                     pdbLogger.info(f"Starting the analysis for {pdb} at {temp}K")
                     pdbLogger.info(f"---------------------------------------------------")
                     for repl in range(args.numReplicas):
