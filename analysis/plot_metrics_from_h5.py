@@ -629,7 +629,145 @@ def plot_Grid_time_vs_ssFraction_respectToSuperfamily(h5metrics, output_dir, mea
     # Save the plot
     plt.savefig(opj(output_dir, f"Grid_SolidFraction_vs_time_{num_pdb}Samples_4Superfamilies.png"), dpi=300)
     plt.close()
+
+def get_secondary_structure_compositions(dssp):
+    '''This funtcion returns the percentage composition of alpha, beta and coil in the protein.
+    A special "NA" code will be assigned to each "residue" in the topology which isn"t actually 
+    a protein residue (does not contain atoms with the names "CA", "N", "C", "O")
+    '''
+    floatMap = {"H": 0, "B": 1, "E": 1, "G": 0, "I": 0, "T": 2, "S": 2, " ": 2, 'NA': 3} 
     
+    decoded_dssp = [el.decode() for el in dssp[-1]]
+    float_dssp = np.array([floatMap[el] for el in decoded_dssp])
+    unique, counts = np.unique(float_dssp, return_counts=True)
+    numResAlpha, numResBeta, numResCoil = 0, 0, 0
+    for u, c in zip(unique, counts):
+        if u == 0:
+            numResAlpha += c
+        elif u == 1:
+            numResBeta += c
+        else:
+            # NA or Coil
+            numResCoil += c
+    # percentage composition in alpha, beta and coil
+    alpha_comp = (numResAlpha / np.sum(counts)) 
+    beta_comp = (numResBeta / np.sum(counts)) 
+    coil_comp = (numResCoil / np.sum(counts))
+    
+    return alpha_comp, beta_comp, coil_comp
+
+def ternary_plot_for_temp_and_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdb=None):
+    import mpltern
+    ''' Use mpltern to plot alpha, beta and coil fractions for each superfamily at each temperature considering only the last
+    frame of the trajectory in a ternary plot.
+    Params:
+    - h5metrics: h5 file with the metrics of the dataset
+    - output_dir: directory where to save the plots
+    - mean_across: 'all' or ['replica id'] # the replica id is a string, and len of the list should be 1
+    - temps: list of temperatures to consider, if None, all the temperatures are considered
+    - num_pdb: number of pdb to consider, if None all the pdb are considered otherwise the the h5metrics.keys() are shuffled and for
+        the each superfamily num_pdb are considered. '''
+        
+    np.random.seed(7)
+    # Load superfamily information from JSON
+    super_family_json = json.load(open("/shared/antoniom/buildCATHDataset/support/cath_info.json", "r"))
+    floatMap = {"H": 0, "B": 1, "E": 1, "G": 0, "I": 0, "T": 2, "S": 2, " ": 2} # DSSP to float map for alpha and beta structures
+
+    # Default temperatures if not provided
+    temps = ['320', '348', '379', '413', '450'] if temps is None else temps
+    
+    # Get the replica settings from function argument
+    replicas = get_replicas(mean_across)
+    
+    # Determine number of plots based on the number of superfamilies
+    superfamilies = sorted({int(super_family_json[pdb]['superfamily_id'].split(".")[0]) for pdb in h5metrics.keys() if pdb in super_family_json.keys()})
+    nRows = len(temps)
+    nCols = len(superfamilies)
+
+    # Setup figure and axes
+    fig = plt.figure(figsize=(nCols * 5, nRows * 5))
+
+    superfamiliy_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
+
+    pdb_list = list(h5metrics.keys()) if num_pdb is None else np.random.choice(list(h5metrics.keys()), len(h5metrics.keys()), replace=False)
+    
+    # Iterate over temperatures and superfamilies
+    for row, temp in enumerate(temps):
+        #print(f"Temperature: {temp}")
+        for col, sf in enumerate(superfamilies):
+            accepted_superfamilies_domains = 0
+            all_alpha = []
+            all_beta = []
+            all_coil = []
+            
+            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Ternary Plot for temp {temp} {superfamiliy_labels[sf]}", ):
+                if num_pdb is not None and accepted_superfamilies_domains >= num_pdb:
+                    break  # Exit loop if reached the specified number of PDBs for the superfamily
+                super_family_id = int(super_family_json[pdb]['superfamily_id'].split(".")[0])
+                if super_family_id != sf:
+                    continue
+                accepted_superfamilies_domains += 1
+                
+                # Process H5 files to get the dssp dataset
+                h5file = h5py.File(f"/workspace3/mdCATH_final/mdcath_dataset_{pdb}.h5", "r")
+                for repl in replicas:
+                    alpha_comp, beta_comp, coil_comp = get_secondary_structure_compositions(h5file[pdb][temp][repl]['dssp'])
+                    all_alpha.append(alpha_comp)
+                    all_beta.append(beta_comp)
+                    all_coil.append(coil_comp)
+                h5file.close()
+                       
+            
+            # plot the ternary plot for the specific superfamily and temperature
+            ax = plt.subplot(nRows, nCols, row * nCols + col + 1, projection='ternary')
+            ax.set_tlabel('Alpha')
+            ax.set_llabel('Beta')
+            ax.set_rlabel('Coil')
+            
+            x, y, z = np.array(all_alpha), np.array(all_beta), np.array(all_coil)
+            
+            # replace the zeros with a small value to avoid the log2(0) = -inf
+            """ x[x == 0] = 1e-10
+            y[y == 0] = 1e-10
+            z[z == 0] = 1e-10 """
+                        
+            #entropy = -(x * np.log2(x / 100) + y * np.log2(y / 100) + z * np.log2(z / 100))
+            entropy = -(x * np.log2(x + 1e-10) + y * np.log2(y + 1e-10) + z * np.log2(z + 1e-10))
+            cs = ax.tripcolor(x, y, z, entropy, shading='gouraud', cmap='viridis')
+            
+            if col == 0:
+                ax.annotate(f"{temp}K", xy=(0.5, 0.5), 
+                            xytext=(-0.45, 0.5), 
+                            fontsize=18, 
+                            ha='center', 
+                            va='center', 
+                            xycoords='axes fraction', 
+                            textcoords='axes fraction',
+                            #fontweight='bold',
+                            )
+            if row == nRows-2:
+                ax.annotate(superfamiliy_labels[sf], 
+                            xy=(0.5, 0.5), 
+                            xytext=(0.5, 1.45), 
+                            fontsize=18, 
+                            ha='center', 
+                            va='center', 
+                            xycoords='axes fraction', 
+                            textcoords='axes fraction', 
+                            #fontweight='bold',
+                            )
+
+    # add an ax for the colorbar
+    cbar_ax = fig.add_axes([0.95, 0.25, 0.02, 0.5])
+    cbar = fig.colorbar(cs, cax=cbar_ax, orientation='vertical', shrink=0.8, aspect=40)
+    cbar.set_label('', fontsize=16)
+    
+    plt.subplots_adjust(right=0.9, hspace=0.5, wspace=0.5, top=0.85)
+    #plt.tight_layout()
+    # Save the plot
+    plt.savefig(opj(output_dir, f"ternary_plot_{num_pdb}Samples_4Superfamilies.png"), dpi=300)
+    plt.close()        
+
 if __name__ == "__main__":
     output_dir = "figures/"
     h5metrics = h5py.File("../all_data_unique_h5/mdcath_analysis.h5", "r")
