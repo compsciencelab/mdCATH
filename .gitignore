@@ -154,3 +154,4 @@ analysis/structure_h5.ipynb
 analysis/check_mdtraj_functions.ipynb
 analysis/check_data.ipynb
 analysis/plot_metrics_from_csv.py
+test_dcdLoaders/*
