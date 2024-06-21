@@ -128,11 +128,6 @@ class molAnalyzer:
             0
         ]  # the box is the same for all frames, so we take the first one
 
-        # traj attributes
-        self.trajAttrs["numFrames"] = self.traj.n_frames
-
-        self.molLogger.info(f"Trajectory length: {self.trajAttrs['numFramse']} ns")
-
     def readDCD(self, dcdFiles, batch_idx):
         try:
             u = MDAnalysis.Universe(self.pdbFile, dcdFiles)
@@ -161,7 +156,7 @@ class molAnalyzer:
             self.molLogger.warning(
                 f"Shapes have been adjusted to {self.forces.shape} and {self.coords.shape}"
             )
-
+        
     def write_toH5(self, molGroup, replicaGroup, attrs, datasets):
         """Write the data to the h5 file, according to the properties defined in the input for the dataset
         Parameters
@@ -196,11 +191,9 @@ class molAnalyzer:
         elif molGroup is None and replicaGroup is not None:
             # the number of frames to be written is the minimum between the last frame accepted by the rmsd and the total number of frames from the traj
             acceppted_frames = min(self.last_idx_by_rmsd, self.coords.shape[0])
-
+            numframes = acceppted_frames
             # replica attributes
-            for key, value in self.trajAttrs.items():
-                if key in attrs:
-                    replicaGroup.attrs[key] = value
+            replicaGroup.attrs['numFrames'] = numframes
             # replica datasets
             for key, value in self.metricAnalysis.items():
                 if key in datasets:
