@@ -85,23 +85,42 @@ def get_secondary_structure_compositions(dssp):
     coil_comp = (numResCoil / np.sum(counts)) * 100
     
     return alpha_comp, beta_comp, coil_comp
-    
+
+def get_max_neighbors(coords, distance):
+    """This function computes the maximum number of neighbors for all the conformations in a replica using a distance threshold,
+    Parameters:
+    coords: np.array, shape=(num_frames, num_atoms, 3)
+    distance: float, the distance threshold to consider two atoms as neighbors
+    Returns:
+    max_neighbors: int, the maximum number of neighbors found in the replica
+    """
+    from scipy.spatial import cKDTree
+    max_neighbors = 0
+    for i in range(coords.shape[0]):
+        tree = cKDTree(coords[i])
+        # Query the tree to find neighbors within the specified distance
+        num_neighbors = tree.query_ball_tree(tree, distance)
+        # Get the maximum number of neighbors for this conformation
+        max_neighbors = max(max_neighbors, max(len(n) for n in num_neighbors))
+    return max_neighbors
+     
 def run(scheduler, batch_idx, data_dir, output_dir='.', file_type='source'):
     """Extract information from the mdCATH dataset and write them to a h5 file per batch"""
     pbbIndices = scheduler.process(batch_idx)
-    file_name = f"mdcath_source_{batch_idx}.h5" if file_type == 'source' else f"mdcath_analysis_{batch_idx}.h5"
+    file_name = f"mdcath_noh_source_{batch_idx}.h5" if file_type == 'source' else f"mdcath_analysis_{batch_idx}.h5"
     resfile = opj(output_dir, file_name)
     with tempfile.NamedTemporaryFile() as tmp:
         tmp_file = tmp.name
         with h5py.File(tmp_file, "w") as h5:
             for i, pdb in tqdm(enumerate(pbbIndices), total=len(pbbIndices), desc=f"processing batch {batch_idx}"):                
                 h5_file = opj(data_dir, f"mdcath_dataset_{pdb}.h5")
+                noh_h5_file = h5py.File(opj('/workspace7/antoniom/noh_mdCATH', f"mdcath_noh_dataset_{pdb}.h5"), 'r')
                 if not os.path.exists(h5_file):
                     logger.error(f"File {h5_file} does not exist")
                     continue
                 
                 group = h5.create_group(pdb)
-              
+                noh_h5_file = h5py.File(opj('/workspace7/antoniom/noh_mdCATH', f"mdcath_noh_dataset_{pdb}.h5"), 'r')
                 with h5py.File(h5_file, "r") as origin:
                     group.attrs['numResidues'] = origin[pdb].attrs['numResidues']
                     group.attrs['numProteinAtoms'] = origin[pdb].attrs['numProteinAtoms']
@@ -131,13 +150,16 @@ def run(scheduler, batch_idx, data_dir, output_dir='.', file_type='source'):
                             elif file_type == 'source':
                                 repl_group.attrs['min_gyration_radius'] = np.min(origin[pdb][temp][replica]['gyrationRadius'][:])
                                 repl_group.attrs['max_gyration_radius'] = np.max(origin[pdb][temp][replica]['gyrationRadius'][:])
-                            
+                                repl_group.attrs['max_num_neighbors_5A'] = get_max_neighbors(noh_h5_file[pdb][temp][replica]['coords'][:], 5.5) # use 5.5 for confidence on the 5A
+                                repl_group.attrs['max_num_neighbors_9A'] = get_max_neighbors(noh_h5_file[pdb][temp][replica]['coords'][:], 9.5) # use 9.5 for confidence on the 9A
+                                
                             alpha_comp, beta_comp, coil_comp = get_secondary_structure_compositions(origin[pdb][temp][replica]['dssp'])
 
                             repl_group.attrs['alpha'] = alpha_comp
                             repl_group.attrs['beta'] = beta_comp
                             repl_group.attrs['coil'] = coil_comp
                             
+                    noh_h5_file.close()       
         shutil.copyfile(tmp_file, resfile) 
                 
 def launch():
@@ -146,9 +168,9 @@ def launch():
     pdb_list_file = '/shared/antoniom/buildCATHDataset/accetptedPDBs.txt'
     # Define the type of file to be written, source or analysis
     # Based on this different attributes will be written
-    file_type = 'analysis' 
+    file_type = 'source' 
     pdb_list = readPDBs(pdb_list_file)
-    batch_size = 200
+    batch_size = 230
     toRunBatches = None
     startBatch = None   
     max_workers = 24
