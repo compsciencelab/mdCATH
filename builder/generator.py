@@ -66,7 +66,7 @@ def run(scheduler, args, batch_idx):
             if os.path.exists(resFile):
                 pdbLogger.info(f"File {resFile} already exists, removing it due to previous errors on the pdb idxs")
                 os.remove(resFile)
-            pdbFilePath = glob(opj(args.gpugridInputsPath, pdb, "*/*.pdb"))[0]
+            pdbFilePath = glob(opj(args.gpugridInputsPath, pdb, "*/*.pdb"))[0] # get structure.pdb from input folder (same for all replicas and temps)
             if not os.path.exists(pdbFilePath):
                 logger.warning(f"{pdb} does not exist")
                 continue

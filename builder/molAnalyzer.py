@@ -123,11 +123,16 @@ class molAnalyzer:
             self.molLogger.error(e)
             return None
 
-        # the rmsd is computed for the heavy atoms only (mol aligned using the CA atoms)
+        # first frame is used as reference for the rmsd
+        refmol = self.protein_mol.copy()
+        refmol.coords = trajmol.coords[:, :, 0].copy()[:, :, np.newaxis]
+        
+        # the rmsd is computed for the heavy atoms only wrt the first frame
         rmsd_metric = MetricRmsd(
-            refmol=self.protein_mol,
+            refmol=refmol,
             trajrmsdstr="protein and not element H",
             trajalnstr="protein and name CA",
+            pbc=True,
         )
         rmsd = rmsd_metric.project(trajmol) * ANGSTROM_TO_NM  # shape (numFrames) [nm]
         rmsd_accepted_frames = np.where(rmsd < RMSD_CUTOFF)[0]
@@ -136,11 +141,13 @@ class molAnalyzer:
         trajmol.dropFrames(keep=rmsd_accepted_frames)
         
         # gyration radius computed for the heay atoms only
-        gyr_metric = MetricGyration(atomsel="not element H", pbc=False)
-        self.metricAnalysis["gyrationRadius"] = (gyr_metric.project(trajmol) * ANGSTROM_TO_NM)  # nm
+        gyr_metric = MetricGyration(atomsel="not element H", refmol=refmol, 
+                                    trajalnsel='name CA', refalnsel='name CA', centersel='protein', pbc=True)
+        
+        # the gyr_metric projection output rg, rg_x, rg_y, rg_z. We take only the first column which is the radius of gyration average over the three dimensions
+        self.metricAnalysis["gyrationRadius"] = gyr_metric.project(trajmol)[:, 0] * ANGSTROM_TO_NM  # nm
 
         # compute rmsf wrt their mean positions
-        #avgmol = trajmol.copy()
         rmsf_metric = MetricFluctuation(atomsel="name CA")
         self.metricAnalysis["rmsf"] = np.sqrt(np.mean(rmsf_metric.project(trajmol), axis=0)) * ANGSTROM_TO_NM
 
