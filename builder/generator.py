@@ -76,7 +76,7 @@ def run(scheduler, args, batch_idx):
                 h5.attrs["layout"] = "mdcath-only-protein-v1.0"
                 pdbGroup = h5.create_group(pdb)
                 os.makedirs(os.path.dirname(resFile), exist_ok=True)
-                Analyzer = molAnalyzer(pdbFilePath, args.molFilter, file_handler, os.path.dirname(resFile))
+                Analyzer = molAnalyzer(pdbFilePath, file_handler, os.path.dirname(resFile))
                 
                 for temp in args.temperatures:
                     pdbTempGroup = pdbGroup.create_group(temp)
