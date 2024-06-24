@@ -156,10 +156,10 @@ class molAnalyzer:
         dssp = dssp_metric.project(trajmol)
         self.metricAnalysis["dssp"] = np.array(encodeDSSP(dssp))
         self.coords = trajmol.coords.copy()  # Angstrom (numAtoms, 3, numFrames)
-        self.box = trajmol.box.copy()[
-            :, 0
-        ]  # the box has shape (3, numFrames), we take the first frame only
-
+        # BOX
+        # the box has shape (3, numFrames), we take the first frame only
+        box = trajmol.box.copy()[:, 0] * ANGSTROM_TO_NM  # nm, shape (3,)
+        self.box = np.diag(box) # shape (3, 3) 
     def readDCD(self, dcdFiles, batch_idx):
         dcdmol = self.mol.copy()
         try:
