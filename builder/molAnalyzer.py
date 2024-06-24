@@ -127,6 +127,7 @@ class molAnalyzer:
         refmol = self.protein_mol.copy()
         refmol.coords = trajmol.coords[:, :, 0].copy()[:, :, np.newaxis]
         
+        # RMSD
         # the rmsd is computed for the heavy atoms only wrt the first frame
         rmsd_metric = MetricRmsd(
             refmol=refmol,
@@ -140,6 +141,7 @@ class molAnalyzer:
 
         trajmol.dropFrames(keep=rmsd_accepted_frames)
         
+        # GYRATION RADIUS
         # gyration radius computed for the heay atoms only
         gyr_metric = MetricGyration(atomsel="not element H", refmol=refmol, 
                                     trajalnsel='name CA', refalnsel='name CA', centersel='protein', pbc=True)
@@ -147,6 +149,7 @@ class molAnalyzer:
         # the gyr_metric projection output rg, rg_x, rg_y, rg_z. We take only the first column which is the radius of gyration average over the three dimensions
         self.metricAnalysis["gyrationRadius"] = gyr_metric.project(trajmol)[:, 0] * ANGSTROM_TO_NM  # nm
 
+        # RMSF
         # compute rmsf wrt their mean positions
         rmsf_metric = MetricFluctuation(atomsel="name CA")
         self.metricAnalysis["rmsf"] = np.sqrt(np.mean(rmsf_metric.project(trajmol), axis=0)) * ANGSTROM_TO_NM
@@ -155,11 +158,15 @@ class molAnalyzer:
         dssp_metric = MetricSecondaryStructure(sel="protein", simplified=False, integer=False)
         dssp = dssp_metric.project(trajmol)
         self.metricAnalysis["dssp"] = np.array(encodeDSSP(dssp))
+        
+        # COORDS 
         self.coords = trajmol.coords.copy()  # Angstrom (numAtoms, 3, numFrames)
+        
         # BOX
         # the box has shape (3, numFrames), we take the first frame only
         box = trajmol.box.copy()[:, 0] * ANGSTROM_TO_NM  # nm, shape (3,)
         self.box = np.diag(box) # shape (3, 3) 
+        
     def readDCD(self, dcdFiles, batch_idx):
         dcdmol = self.mol.copy()
         try:
@@ -193,7 +200,7 @@ class molAnalyzer:
                 )
 
             self.molLogger.warning(
-                f"Shapes have been adjusted to {self.forces.shape} and {self.coords.shape}"
+                f"Shapes have been adjusted to: coords {self.coords.shape}, forces {self.forces.shape} "
             )
 
     def sanityCheck(self):
