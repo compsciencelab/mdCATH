@@ -112,7 +112,7 @@ def run(scheduler, args, batch_idx):
             
             os.makedirs(opj(args.finaldatasetPath, pdb), exist_ok=True)
             shutil.copyfile(tmpFile, resFile)
-            pdbLogger.info(f"\n{pdb} batch {batch_idx} completed successfully added to mdCATH dataset")
+            pdbLogger.info(f"\n{pdb} batch {batch_idx} completed successfully added to mdCATH dataset: {args.finaldatasetPath}")
             shutil.copyfile(tmplogfile, logFile) 
     
 def launch():
