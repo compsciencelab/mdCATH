@@ -76,6 +76,10 @@ class molAnalyzer:
         self.mol.read(pdbFile.replace(".pdb", ".psf"))
         self.proteinIdxs = self.mol.get("index", sel="protein")
 
+        # to have retrocompatibility with initial version of mdcath the chain of the protein atoms is set to 0
+        # TODO: change in future version of mdcath
+        self.mol.chain[self.proteinIdxs] = "0"
+        
         self.protein_mol = self.mol.copy()
         self.protein_mol.filter("protein")
         self.pdb_filtered_name = (
@@ -125,6 +129,7 @@ class molAnalyzer:
             return None
 
         # first frame is used as reference for the rmsd
+        # TODO: compute rmsd wrt to the input structure of the md-simulation (it's not the first frame of the trajectory)
         refmol = self.protein_mol.copy()
         refmol.coords = trajmol.coords[:, :, 0].copy()[:, :, np.newaxis]
         
@@ -148,17 +153,19 @@ class molAnalyzer:
                                     trajalnsel='name CA', refalnsel='name CA', centersel='protein', pbc=True)
         
         # the gyr_metric projection output rg, rg_x, rg_y, rg_z. We take only the first column which is the radius of gyration average over the three dimensions
-        self.metricAnalysis["gyrationRadius"] = gyr_metric.project(trajmol)[:, 0] * ANGSTROM_TO_NM  # nm
+        # the dtype is set to float64 to have retrocompatibility with initial version of mdcath
+        # TODO: make everything float32 in future version of mdcath
+        self.metricAnalysis["gyrationRadius"] = (gyr_metric.project(trajmol)[:, 0] * ANGSTROM_TO_NM).astype(np.float64)  # nm
 
         # RMSF
         # compute rmsf wrt their mean positions
         rmsf_metric = MetricFluctuation(atomsel="name CA")
-        self.metricAnalysis["rmsf"] = np.sqrt(np.mean(rmsf_metric.project(trajmol), axis=0)) * ANGSTROM_TO_NM
+        self.metricAnalysis["rmsf"] = (np.sqrt(np.mean(rmsf_metric.project(trajmol), axis=0)) * ANGSTROM_TO_NM).astype(np.float32)  # nm
 
         # DSSP
         dssp_metric = MetricSecondaryStructure(sel="protein", simplified=False, integer=False)
         dssp = dssp_metric.project(trajmol)
-        self.metricAnalysis["dssp"] = np.array(encodeDSSP(dssp))
+        self.metricAnalysis["dssp"] = np.array(encodeDSSP(dssp)).astype(object)
         
         # COORDS 
         self.coords = trajmol.coords.copy()  # Angstrom (numAtoms, 3, numFrames)
