@@ -215,7 +215,6 @@ class molAnalyzer:
         """Sanity check on the shapes of the arrays"""       
         numAtoms = self.protein_mol.numAtoms
         numResidues = self.protein_mol.numResidues
-        numFrames = self.coords.shape[2]
                
         # Fix coords and forces shapes to (numFrames, numAtoms, 3)
         if self.coords.shape[0] == numAtoms:
@@ -223,6 +222,7 @@ class molAnalyzer:
         if self.forces.shape[0] == numAtoms:
             self.forces = np.moveaxis(self.forces, -1, 0)       
         
+        numFrames = self.coords.shape[0]
         assert self.coords.shape == (numFrames, numAtoms, 3), f"Coords shape {self.coords.shape} does not match (numFrames, numAtoms, 3)"
         assert self.coords.shape == self.forces.shape, f"Shapes of coords {self.coords.shape} and forces {self.forces.shape} do not match"
         assert self.metricAnalysis["rmsd"].shape[0] == numFrames, f'rmsd shape {self.metricAnalysis["rmsd"].shape[0]} and numFrames {numFrames} do not match'
@@ -264,7 +264,7 @@ class molAnalyzer:
         elif molGroup is None and replicaGroup is not None:
             self.sanityCheck()
             # replica attributes
-            replicaGroup.attrs["numFrames"] =self.coords.shape[2]
+            replicaGroup.attrs["numFrames"] = self.coords.shape[0]
             # replica datasets
             for key, value in self.metricAnalysis.items():
                 if key in datasets:
