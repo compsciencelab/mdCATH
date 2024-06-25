@@ -74,19 +74,21 @@ class molAnalyzer:
         # all atom and solvent atoms are considered
         self.mol = Molecule(pdbFile)
         self.mol.read(pdbFile.replace(".pdb", ".psf"))
+        self.proteinIdxs = self.mol.get("index", sel="protein")
 
         self.protein_mol = self.mol.copy()
         self.protein_mol.filter("protein")
+        self.pdb_filtered_name = (
+            f"{self.processed_path}/{self.pdbName}_protein_filter.pdb"
+        )
+        self.protein_mol.write(self.pdb_filtered_name)
 
     def computeProperties(
         self,
     ):
         """Compute the properties of the molecule"""
         tmpmol = self.protein_mol.copy()
-        self.pdb_filtered_name = (
-            f"{self.processed_path}/{self.pdbName}_protein_filter.pdb"
-        )
-        self.mol.write(self.pdb_filtered_name)
+        
         # dataset
         self.molData = {}
         self.molData["chain"] = tmpmol.chain
@@ -100,7 +102,6 @@ class molAnalyzer:
         self.molAttrs["numResidues"] = tmpmol.numResidues
         self.molAttrs["numChains"] = len(set(list(self.molData["chain"])))
         self.molAttrs["numBonds"] = tmpmol.numBonds
-        self.proteinIdxs = tmpmol.get("index", sel="protein")
 
     def trajAnalysis(self, traj_files, batch_idx):
         """Perform the analysis of the trajectory file after concatenation
