@@ -1,3 +1,5 @@
+# This script gets the CATH info, using CATH api, for each PDB in the mdCATH dataset and saves it in a JSON file.
+
 import h5py
 import json 
 import urllib.request
@@ -26,7 +28,7 @@ def get_json_from_url(domain, info_error_file):
     return json_data
 
 if __name__ == '__main__':
-    h5_file = '/shared/antoniom/buildCATHDataset/dataloader_h5/mdcath_source.h5'
+    h5_file = '/path/to/mdcath_source.h5'
     info_error_file = open('info_error.txt', 'w')
     info_error_file.write('Errors in getting CATH info\n')
     h5 = h5py.File(h5_file, 'r')
