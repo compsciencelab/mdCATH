@@ -163,17 +163,19 @@ def run(scheduler, batch_idx, data_dir, output_dir='.', file_type='source'):
         shutil.copyfile(tmp_file, resfile) 
                 
 def launch():
-    data_dir = "/workspace3/mdCATH_final"
+    data_dir = "PATH/TO/MDCATH/DATASET/DIR"
     output_dir = "batch_files"
-    pdb_list_file = '/shared/antoniom/buildCATHDataset/accetptedPDBs.txt'
+    pdb_list_file = '../accetptedPDBs.txt'
     # Define the type of file to be written, source or analysis
     # Based on this different attributes will be written
     file_type = 'source' 
     pdb_list = readPDBs(pdb_list_file)
-    batch_size = 230
+    batch_size = 250
     toRunBatches = None
     startBatch = None   
     max_workers = 24
+    
+    os.makedirs(output_dir, exist_ok=True)
     # Get a number of batches
     numBatches = int(math.ceil(len(pdb_list) / batch_size))
     logger.info(f"Batch size: {batch_size}")
