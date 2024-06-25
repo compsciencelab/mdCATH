@@ -156,3 +156,4 @@ analysis/check_data.ipynb
 analysis/plot_metrics_from_csv.py
 test_dcdLoaders/*
 analysis/note_reproducibility.ipynb
+check_reproducibility/check.py
