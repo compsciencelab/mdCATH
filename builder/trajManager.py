@@ -4,8 +4,7 @@ from glob import glob
 import logging
 
 # The exception cases are the trajectories that not have a dir in gpugrid_extend_results, so gpugrid_run_results is used
-exception_cases = {"2k88A00_413_0", "3vsmA01_320_4", "4qxdB02_450_2"}
-
+exception_cases = {"2k88A00_413_0", "3vsmA01_320_4", "3qdkA02_320_2", "3qdkA02_413_0", "4qxdB02_450_2"}
 
 class TrajectoryFileManager:
     def __init__(self, gpugridResultsPath, concatTrajPath):
