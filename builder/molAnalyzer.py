@@ -17,7 +17,7 @@ def encodeDSSP(dssp):
         encodedDSSP.append([x.encode("utf-8") for x in dssp[i]])
     return encodedDSSP
 
-def write_toH5(txtfile, h5group, dataset_name="pdb"):
+def txt_toH5(txtfile, h5group, dataset_name="pdb"):
     """Write the content of the txt file to the h5 group as a dataset.
     Parameters
     ----------
@@ -239,11 +239,11 @@ class molAnalyzer:
         """
         if molGroup is not None and replicaGroup is None:
             # write the pdb file to the h5 file
-            write_toH5(self.pdbFile, molGroup, dataset_name="pdb")
+            txt_toH5(self.pdbFile, molGroup, dataset_name="pdb")
             # write the filtered pdb file to the h5 file
-            write_toH5(self.pdb_filtered_name, molGroup, dataset_name="pdbProteinAtoms")
+            txt_toH5(self.pdb_filtered_name, molGroup, dataset_name="pdbProteinAtoms")
             # write the psf file to the h5 file
-            write_toH5(self.pdbFile.replace(".pdb", ".psf"), molGroup)
+            txt_toH5(self.pdbFile.replace(".pdb", ".psf"), molGroup)
             # mol attributes
             for key, value in self.molAttrs.items():
                 if key in attrs:
