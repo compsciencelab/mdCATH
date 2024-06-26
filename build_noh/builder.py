@@ -68,7 +68,7 @@ def run(scheduler, batch_idx, data_dir, input_dir, output_dir='.'):
                     continue
                 
                 group = h5.create_group(pdb)
-                h5.attrs["layout"] = "cath-dataset-noh"
+                h5.attrs["layout"] = "mdcath-dataset-noh"
                 with h5py.File(h5_file, "r") as origin:
                     
                     z = origin[pdb]['z'][:]
