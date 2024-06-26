@@ -24,9 +24,11 @@ fh = logging.FileHandler('/workspace7/antoniom/noh_mdCATH/error.log')
 fh.setLevel(logging.ERROR)
 logger.addHandler(fh)
 
-def readPDBs(pdbFileList):
+def readPDBs(pdbList):
+    if isinstance(pdbList, list):
+        return pdbList
     pdblist = []
-    with open(pdbFileList, "r") as f:
+    with open(pdbList, "r") as f:
         for line in f:
             pdblist.append(line.strip())
     return sorted(pdblist)
