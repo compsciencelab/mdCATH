@@ -3,7 +3,7 @@ This directory contains the script to write essential info to a unique h5 file. 
 - mdcath_analysis.h5: used to store the data for the analysis and visualization by analysis/plot_metrics_from_h5.py
 
 Script usage:
+- append_info_to_h5.py: append/modify h5file's content
 - write_info_to_h5.py: generate the selected file type using batching
 - read_info.ipynb: to inspect the content of the h5 file
-- join_multiple_h5.py: to join multiple h5 files into one
-- error.log: store the error message during the write_info_process
+- join_multiple_h5.py: to join multiple h5 files (batches), output of write_info_to_h5.py, into a single h5 file
