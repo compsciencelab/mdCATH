@@ -12,8 +12,5 @@ Welcome to the mdCATH dataset repository! This repository houses all the scripts
 
 ## Highlights
 - **Batching and Multiprocessing**: Leverage the power of parallel processing to generate the dataset faster and more efficiently.
-
-- **Efficient Data Generation**: Automate the creation of the mdCATH dataset with ease, ensuring each domain is accurately processed and logged.
   
-- **Comprehensive Analysis**: Utilize our pre-configured scripts and notebooks to replicate the plots and analyses presented in our research, facilitating deeper insights into the dataset.
-
+- **Comprehensive Analysis**: A set of pre-configured scripts and notebooks are available in analysis dir to replicate the plots and analyses presented in the paper.
