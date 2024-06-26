@@ -1,18 +1,21 @@
-# write a csv file containing the information of the mdCATH database
+# This script reads the mdCATH dataset (h5 files) and writes the information to a new h5 file (source or analysis).
+# It includes multiprocessing to speed up the process (batch processing).
+
 import os 
 import sys 
-sys.path.append("/shared/antoniom/buildCATHDataset/builder/")
 import h5py 
-from os.path import join as opj
-import pandas as pd
+import math 
+import shutil
+import logging
+import tempfile
 import numpy as np
 from tqdm import tqdm
-import logging
-import math 
 import concurrent.futures
+from os.path import join as opj
+from tools import get_secondary_structure_compositions, get_max_neighbors, get_solid_secondary_structure, readPDBs
+sys.path.append("/shared/antoniom/buildCATHDataset/builder/")
 from scheduler import ComputationScheduler
-import tempfile
-import shutil
+
 
 logger = logging.getLogger('writer')
 logger.setLevel(logging.INFO)
