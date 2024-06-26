@@ -42,11 +42,10 @@ class AggForce:
         if z is not None:
             self.z = z
             assert len(self.z) == self.mol.numAtoms
-            assert self.z == [periodictable[i] for i in self.mol.get("element")]
-            print(f"Atomic numbers: {self.z}")
+            assert (self.z == [periodictable[i].number for i in self.mol.get("element")]).all()
         else:
-            self.z = [periodictable[i] for i in self.mol.get("element")]
-            print(f"Atomic numbers: {self.z}")
+            self.z = [periodictable[i].number for i in self.mol.get("element")]
+
         self.noh_idxs = self.mol.get("index", sel="noh")
         self.constraints = self.getConstraints(self.mol)
         logger.info(f"Number of noh atoms: {len(self.noh_idxs)}")
