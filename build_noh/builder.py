@@ -61,8 +61,8 @@ def run(scheduler, batch_idx, data_dir, input_dir, output_dir='.'):
                     logger.error(f"H5 NOT FOUND: File {h5_file} does not exist | batch {batch_idx}")
                     continue
                 
-                psfpath = glob(opj(input_dir, pdb, "*/*.psf"))[0]
-                pdbpath = glob(opj(input_dir, pdb, "*/*.pdb"))[0]
+                psfpath = glob(opj(input_dir, pdb, "*/structure.psf"))[0]
+                pdbpath = glob(opj(input_dir, pdb, "*/structure.pdb"))[0]
                 if not os.path.exists(psfpath) or not os.path.exists(pdbpath):
                     logger.error(f"SKIPPING {pdb}: {psfpath} or {pdbpath} does not exist | batch {batch_idx}")
                     continue
