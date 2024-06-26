@@ -5,13 +5,14 @@ import math
 import sys
 import h5py
 import shutil
+import argparse
 import logging
 import tempfile
 from tqdm import tqdm
 import concurrent.futures
 from os.path import join as opj
 from glob import glob
-from utils import readPDBs, get_args, save_argparse
+from utils import readPDBs, save_argparse, LoadFromFile
 from trajManager import TrajectoryFileManager
 from molAnalyzer import molAnalyzer
 from scheduler import ComputationScheduler
@@ -21,6 +22,38 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysi
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("builder")
+
+def get_argparse():
+    parser = argparse.ArgumentParser(description="mdCATH dataset builder", prefix_chars="--")
+    
+    # Add arguments with default values from the configuration
+    parser.add_argument('--conf', '-c', type=open, action=LoadFromFile, help='Configuration yaml file')  # keep second
+    
+    parser.add_argument('--pdblist', help='Path to the list of accepted PDBs or a list of PDBs')
+    parser.add_argument('--gpugridResultsPath', type=str, help='Path to GPU grid results')
+    parser.add_argument('--gpugridInputsPath', type=str, help='Path to GPU grid inputs')
+    parser.add_argument('--concatTrajPath', type=str, default=None, help='Path to concatenated trajectory')
+    parser.add_argument('--finaldatasetPath', type=str, default='mdcath', help='Path to the final dataset')
+    parser.add_argument('--temperatures', type=list, default=["320", "348", "379", "413", "450"], help='The simulation temperatures to consider')
+    parser.add_argument('--numReplicas', type=int, default=1, help='Number of replicas, available for each temperature', choices=range(0,4,1))
+    parser.add_argument('--trajAttrs', type=list, default=['numFrames'], help='Trajectory attributes for each replica')
+    parser.add_argument('--trajDatasets', type=list, default=['rmsd', 'gyrationRadius', 'rmsf', 'dssp'], help='Trajectory datasets for each replica')
+    parser.add_argument('--pdbAttrs', type=list, default=['numProteinAtoms', 'numResidues', 'numChains'], help='PDB attributes, shared by temperatures and replicas')
+    parser.add_argument('--pdbDatasets', type=list, default=['element', 'z', 'resname', 'resid', 'chain'], help='PDB datasets, shared by temperatures and replicas')
+    parser.add_argument('--batchSize', type=int, default=1, help='batch size to use in the computation')
+    parser.add_argument('--toRunBatches', type=int, default=None, help='Number of batches to run, if None all the batches will be run')
+    parser.add_argument('--startBatch', type=int, defaul=None, help='Start batch, if None the first batch will be run')
+    parser.add_argument('--endBatch', type=int, default=None, help='End batch, if None the last batch will be run')
+    parser.add_argument('--maxWorkers', type=int, default=24, help='Number of workers to use in the multiprocessing')
+    
+    return parser
+
+def get_args():
+    parser = get_argparse()
+    args = parser.parse_args()
+    os.makedirs(args.finaldatasetPath, exist_ok=True)
+    save_argparse(args, os.path.join(args.finaldatasetPath, "input.yaml"), exclude=["conf"])
+    return args
 
 class Payload:
     def __init__(self, scheduler, args):
@@ -114,11 +147,10 @@ def run(scheduler, args, batch_idx):
             shutil.copyfile(tmpFile, resFile)
             pdbLogger.info(f"\n{pdb} batch {batch_idx} completed successfully added to mdCATH dataset: {args.finaldatasetPath}")
             shutil.copyfile(tmplogfile, logFile) 
-    
+
 def launch():
     args = get_args()
-    save_argparse(args, opj(args.finaldatasetPath, "input.yaml"))
-    
+   
     acceptedPDBs = readPDBs(args.pdblist) if args.pdblist else None
     if acceptedPDBs is None:
         logger.error("Please provide a list of accepted PDBs which will be used to generate the dataset.")
