@@ -171,7 +171,7 @@ class molAnalyzer:
         if self.trajmol.numFrames != self.coords.shape[2]:
             # a mismatch between the number of frames in the trajectory and the number of frames in the coords
             # can be found since in readDCD we take the minimum between forces and coords
-            self.trajmol.coords = self.coords.copy()
+            self.trajmol.dropFrames(keep=np.arange(self.coords.shape[2]))
         
         self.trajAttrs = {}
         self.metricAnalysis = {}
