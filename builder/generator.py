@@ -42,7 +42,7 @@ def get_argparse():
     parser.add_argument('--pdbDatasets', type=list, default=['element', 'z', 'resname', 'resid', 'chain'], help='PDB datasets, shared by temperatures and replicas')
     parser.add_argument('--batchSize', type=int, default=1, help='batch size to use in the computation')
     parser.add_argument('--toRunBatches', type=int, default=None, help='Number of batches to run, if None all the batches will be run')
-    parser.add_argument('--startBatch', type=int, defaul=None, help='Start batch, if None the first batch will be run')
+    parser.add_argument('--startBatch', type=int, default=None, help='Start batch, if None the first batch will be run')
     parser.add_argument('--endBatch', type=int, default=None, help='End batch, if None the last batch will be run')
     parser.add_argument('--maxWorkers', type=int, default=24, help='Number of workers to use in the multiprocessing')
     
