@@ -114,16 +114,18 @@ def run(scheduler, args, batch_idx):
                 os.makedirs(os.path.dirname(resFile), exist_ok=True)
                 Analyzer = molAnalyzer(pdbFilePath, file_handler, os.path.dirname(resFile))
                 Analyzer.computeProperties()
+
                 for temp in args.temperatures:
                     pdbTempGroup = pdbGroup.create_group(temp)
-                    pdbLogger.info(f"Starting the analysis for {pdb} at {temp}K")
                     pdbLogger.info(f"---------------------------------------------------")
+                    pdbLogger.info(f"Starting the analysis for {pdb} at {temp}K \n")
                     for repl in range(args.numReplicas):
                         pdbLogger.info(f"## REPLICA {repl} ##")
                         pdbTempReplGroup = pdbTempGroup.create_group(str(repl))
                         try:
                             trajFiles = trajFileManager.getTrajFiles(pdb, temp, repl)
                             dcdFiles = [f.replace("9.xtc", "8.vel.dcd") for f in trajFiles]
+                            pdbLogger.info(f"numTrajFiles: {len(trajFiles)}")
                         except AssertionError as e:
                             pdbLogger.error(e)
                             continue
@@ -138,7 +140,7 @@ def run(scheduler, args, batch_idx):
                         
                         # write the data to the h5 file for the replica
                         Analyzer.write_toH5(molGroup=None, replicaGroup=pdbTempReplGroup, attrs=args.trajAttrs, datasets=args.trajDatasets)
-                        
+                        pdbLogger.info('\n')
                 # If no replica was found, skip the molecule. The molecule will be written to the h5 file only if it has at least one replica at one temperature
                 if not hasattr(Analyzer, "molAttrs"):
                     pdbLogger.error(f"molAttrs not found for {pdb} and batch {batch_idx}")
@@ -200,4 +202,4 @@ def launch():
 
 if __name__ == "__main__":
     launch()
-    logger.info("CATH-DATASET BUILDING COMPLETED!")
+    logger.info("mdCATH-DATASET BUILD COMPLETED!")
