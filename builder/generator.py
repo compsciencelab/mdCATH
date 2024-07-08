@@ -144,9 +144,9 @@ def run(scheduler, args, batch_idx):
                 Analyzer.write_toH5(molGroup=pdbGroup, replicaGroup=None, attrs=args.pdbAttrs, datasets=args.pdbDatasets)  
             
             os.makedirs(opj(args.finaldatasetPath, pdb), exist_ok=True)
-            shutil.copyfile(tmpFile, resFile)
+            shutil.move(tmpFile, resFile)
             pdbLogger.info(f"\n{pdb} batch {batch_idx} completed successfully added to mdCATH dataset: {args.finaldatasetPath}")
-            shutil.copyfile(tmplogfile, logFile) 
+            shutil.move(tmplogfile, logFile)
 
 def launch():
     args = get_args()
