@@ -8,14 +8,14 @@ import shutil
 import argparse
 import logging
 import tempfile
+from glob import glob
 from tqdm import tqdm
 import concurrent.futures
 from os.path import join as opj
-from glob import glob
-from utils import readPDBs, save_argparse, LoadFromFile
-from trajManager import TrajectoryFileManager
 from molAnalyzer import molAnalyzer
 from scheduler import ComputationScheduler
+from trajManager import TrajectoryFileManager
+from utils import readPDBs, save_argparse, LoadFromFile
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis")
@@ -77,9 +77,10 @@ def run(scheduler, args, batch_idx):
     batch_idx: int
         The index of the batch to be processed
     """
-    pbbIndices = scheduler.process(batch_idx)
+    pdb_idxs = scheduler.process(batch_idx)
     trajFileManager = TrajectoryFileManager(args.gpugridResultsPath, args.concatTrajPath)
-    for pdb in tqdm(pbbIndices, total=len(pbbIndices), desc="reading PDBs"):    
+    desc = pdb_idxs[0] if len(pdb_idxs) == 1 else "reading PDBs"
+    for pdb in tqdm(pdb_idxs, total=len(pdb_idxs), desc=desc):    
         with tempfile.TemporaryDirectory() as temp:
             
             tmpFile = opj(temp, f"mdcath_dataset_{pdb}.h5")
