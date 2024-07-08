@@ -107,74 +107,31 @@ class molAnalyzer:
         self.molAttrs["numChains"] = len(set(list(self.molData["chain"])))
         self.molAttrs["numBonds"] = tmpmol.numBonds
 
-    def trajAnalysis(self, traj_files, batch_idx):
-        """Perform the analysis of the trajectory file after concatenation
+    def readXTC(self, xtcFiles, batch_idx):
+        """Read the xtc trajectory files
         Parameters
         ----------
-        trajFiles : list
-            The list of the trajectory files (.xtc format)
-        """
-        self.trajAttrs = {}
-        self.metricAnalysis = {}
-        trajmol = self.mol.copy()
+        xtcFiles : list
+            The list of xtc files to be read
+        
+        batch_idx : int
+            The index of the batch to be used in the log file """
+        
+        self.trajmol = self.mol.copy()
         try:
-            trajmol.read(traj_files)
-            trajmol.filter("protein")
+            self.trajmol.read(xtcFiles)
+            self.trajmol.filter("protein")
 
         except (RuntimeError, ValueError, OSError) as e:
             self.molLogger.error(
-                f"TRAJECTORY LOADING ERROR ON BATCH:{batch_idx} | SIM: {os.path.basename(traj_files[0]).split('-')[0]}"
+                f"TRAJECTORY LOADING ERROR ON BATCH:{batch_idx} | SIM: {os.path.basename(xtcFiles[0]).split('-')[0]}"
             )
             self.molLogger.error(e)
             return None
-
-        # first frame is used as reference for the rmsd
-        # TODO: compute rmsd wrt to the input structure of the md-simulation (it's not the first frame of the trajectory)
-        refmol = self.protein_mol.copy()
-        refmol.coords = trajmol.coords[:, :, 0].copy()[:, :, np.newaxis]
-        
-        # RMSD
-        # the rmsd is computed for the heavy atoms only wrt the first frame
-        rmsd_metric = MetricRmsd(
-            refmol=refmol,
-            trajrmsdstr="protein and not element H",
-            trajalnstr="protein and name CA",
-            pbc=True,
-        )
-        rmsd = rmsd_metric.project(trajmol) * ANGSTROM_TO_NM  # shape (numFrames) [nm]
-        rmsd_accepted_frames = np.where(rmsd < RMSD_CUTOFF)[0]
-        self.metricAnalysis["rmsd"] = rmsd[rmsd_accepted_frames]
-
-        trajmol.dropFrames(keep=rmsd_accepted_frames)
-        
-        # GYRATION RADIUS
-        # gyration radius computed for the heay atoms only
-        gyr_metric = MetricGyration(atomsel="not element H", refmol=refmol, 
-                                    trajalnsel='name CA', refalnsel='name CA', centersel='protein', pbc=True)
-        
-        # the gyr_metric projection output rg, rg_x, rg_y, rg_z. We take only the first column which is the radius of gyration average over the three dimensions
-        # the dtype is set to float64 to have retrocompatibility with initial version of mdcath
-        # TODO: make everything float32 in future version of mdcath
-        self.metricAnalysis["gyrationRadius"] = (gyr_metric.project(trajmol)[:, 0] * ANGSTROM_TO_NM).astype(np.float64)  # nm
-
-        # RMSF
-        # compute rmsf wrt their mean positions
-        rmsf_metric = MetricFluctuation(atomsel="name CA")
-        self.metricAnalysis["rmsf"] = (np.sqrt(np.mean(rmsf_metric.project(trajmol), axis=0)) * ANGSTROM_TO_NM).astype(np.float32)  # nm
-
-        # DSSP
-        dssp_metric = MetricSecondaryStructure(sel="protein", simplified=False, integer=False)
-        dssp = dssp_metric.project(trajmol)
-        self.metricAnalysis["dssp"] = np.array(encodeDSSP(dssp)).astype(object)
         
         # COORDS 
-        self.coords = trajmol.coords.copy()  # Angstrom (numAtoms, 3, numFrames)
-        
-        # BOX
-        # the box has shape (3, numFrames), we take the first frame only
-        box = trajmol.box.copy()[:, 0] * ANGSTROM_TO_NM  # nm, shape (3,)
-        self.box = np.diag(box) # shape (3, 3) 
-        
+        self.coords = self.trajmol.coords.copy()  # Angstrom (numAtoms, 3, numFrames)
+    
     def readDCD(self, dcdFiles, batch_idx):
         dcdmol = self.mol.copy()
         try:
@@ -196,20 +153,68 @@ class molAnalyzer:
             last_idx = min(self.forces.shape[2], self.coords.shape[2])
             self.forces = self.forces[:, :, :last_idx]
             self.coords = self.coords[:, :, :last_idx]
+    
+    def trajAnalysis(self):
+        """Perform the analysis of the trajectory"""
+        
+        if self.trajmol.numFrames != self.coords.shape[2]:
+            # a mismatch between the number of frames in the trajectory and the number of frames in the coords
+            # can be found since in readDCD we take the minimum between forces and coords
+            self.trajmol.coords = self.coords.copy()
+        
+        self.trajAttrs = {}
+        self.metricAnalysis = {}
+        
+        # first frame is used as reference for the rmsd
+        # TODO: compute rmsd wrt to the input structure of the md-simulation (it's not the first frame of the trajectory)
+        refmol = self.protein_mol.copy()
+        refmol.coords = self.trajmol.coords[:, :, 0].copy()[:, :, np.newaxis]
+        
+        # RMSD
+        # the rmsd is computed for the heavy atoms only wrt the first frame
+        rmsd_metric = MetricRmsd(
+            refmol=refmol,
+            trajrmsdstr="protein and not element H",
+            trajalnstr="protein and name CA",
+            pbc=True,
+        )
+        
+        rmsd = rmsd_metric.project(self.trajmol) * ANGSTROM_TO_NM  # shape (numFrames) [nm]
+        rmsd_accepted_frames = np.where(rmsd < RMSD_CUTOFF)[0]
+        if len(rmsd_accepted_frames) != self.trajmol.numFrames:
+            self.molLogger.warning(f"RMSD cutoff {RMSD_CUTOFF} nm, {self.trajmol.numFrames - len(rmsd_accepted_frames)} frames were removed")
+            self.molLogger.warning('coords and forces shapes were updated to match the rmsd_accepted_frames')
+            self.coords = self.coords[:, :, rmsd_accepted_frames]
+            self.forces = self.forces[:, :, rmsd_accepted_frames]
+        
+        self.metricAnalysis["rmsd"] = rmsd[rmsd_accepted_frames]
 
-            # Update the metricAnalysis to match the new shapes
-            for metric, values in self.metricAnalysis.items():
-                # rmsf skipped since it has shape num
-                if metric == "rmsf":
-                    continue
-                self.metricAnalysis[metric] = values[:last_idx]
-                self.molLogger.warning(
-                    f"Shapes of {metric} have been adjusted to {self.metricAnalysis[metric].shape}"
-                )
+        self.trajmol.dropFrames(keep=rmsd_accepted_frames)
+        
+        # GYRATION RADIUS
+        # gyration radius computed for the heay atoms only
+        gyr_metric = MetricGyration(atomsel="not element H", refmol=refmol, 
+                                    trajalnsel='name CA', refalnsel='name CA', centersel='protein', pbc=True)
+        
+        # the gyr_metric projection output rg, rg_x, rg_y, rg_z. We take only the first column which is the radius of gyration average over the three dimensions
+        # the dtype is set to float64 to have retrocompatibility with initial version of mdcath
+        # TODO: make everything float32 in future version of mdcath
+        self.metricAnalysis["gyrationRadius"] = (gyr_metric.project(self.trajmol)[:, 0] * ANGSTROM_TO_NM).astype(np.float32)  # nm
 
-            self.molLogger.warning(
-                f"Shapes have been adjusted to: coords {self.coords.shape}, forces {self.forces.shape} "
-            )
+        # RMSF
+        # compute rmsf wrt their mean positions
+        rmsf_metric = MetricFluctuation(atomsel="name CA")
+        self.metricAnalysis["rmsf"] = (np.sqrt(np.mean(rmsf_metric.project(self.trajmol), axis=0)) * ANGSTROM_TO_NM).astype(np.float32)  # nm
+
+        # DSSP
+        dssp_metric = MetricSecondaryStructure(sel="protein", simplified=False, integer=False)
+        dssp = dssp_metric.project(self.trajmol)
+        self.metricAnalysis["dssp"] = np.array(encodeDSSP(dssp)).astype(object)
+        
+        # BOX
+        # the box has shape (3, numFrames), we take the first frame only
+        box = self.trajmol.box.copy()[:, 0] * ANGSTROM_TO_NM  # nm, shape (3,)
+        self.box = np.diag(box) # shape (3, 3) 
 
     def sanityCheck(self):
         """Sanity check on the shapes of the arrays"""       
