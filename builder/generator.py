@@ -110,7 +110,7 @@ def run(scheduler, args, batch_idx):
                 pdbGroup = h5.create_group(pdb)
                 os.makedirs(os.path.dirname(resFile), exist_ok=True)
                 Analyzer = molAnalyzer(pdbFilePath, file_handler, os.path.dirname(resFile))
-                
+                Analyzer.computeProperties()
                 for temp in args.temperatures:
                     pdbTempGroup = pdbGroup.create_group(temp)
                     pdbLogger.info(f"Starting the analysis for {pdb} at {temp}K")
