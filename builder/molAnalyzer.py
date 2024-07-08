@@ -8,6 +8,10 @@ from moleculekit.projections.metricgyration import MetricGyration
 from moleculekit.projections.metricfluctuation import MetricFluctuation
 from moleculekit.projections.metricsecondarystructure import MetricSecondaryStructure
 
+# get moleculekit.bondguesser logger and ignore it
+# moleculekit v 1.8.36 the get function uses atom_select in which by default guessBonds=True
+logging.getLogger("moleculekit.bondguesser").setLevel(logging.CRITICAL)
+
 ANGSTROM_TO_NM = 0.1
 RMSD_CUTOFF = 40  # nm
 
@@ -65,7 +69,7 @@ class molAnalyzer:
         self.molLogger = logging.getLogger("MolAnalyzer")
         if file_handler is not None:
             self.molLogger.addHandler(file_handler)
-        logging.getLogger("moleculekit").handlers = [self.molLogger]
+        #logging.getLogger("moleculekit").handlers = [self.molLogger]
 
         self.pdbFile = pdbFile
         self.pdbName = os.path.basename(pdbFile).split(".")[0]
@@ -75,13 +79,20 @@ class molAnalyzer:
         self.mol = Molecule(pdbFile)
         self.mol.read(pdbFile.replace(".pdb", ".psf"))
         self.proteinIdxs = self.mol.get("index", sel="protein")
-
+        
         # to have retrocompatibility with initial version of mdcath the chain of the protein atoms is set to 0
         # TODO: change in future version of mdcath
         self.mol.chain[self.proteinIdxs] = "0"
         
         self.protein_mol = self.mol.copy()
         self.protein_mol.filter("protein")
+        
+        # Log the properties of the molecule
+        self.molLogger.info('Molecule object created from pdb and psf files')
+        self.molLogger.info(f"Number of residues: {self.protein_mol.numResidues}")
+        self.molLogger.info(f"Number of atoms: {self.mol.numAtoms}")
+        self.molLogger.info(f"Number of protein atoms: {len(self.proteinIdxs)}")
+        
         self.pdb_filtered_name = (
             f"{self.processed_path}/{self.pdbName}_protein_filter.pdb"
         )
@@ -281,6 +292,10 @@ class molAnalyzer:
             # coords and forces are written here using mdtraj function
             replicaGroup.create_dataset("coords", data=self.coords)
             replicaGroup.create_dataset("forces", data=self.forces)
+            
+            self.molLogger.info(f'coords shape: {self.coords.shape}')
+            self.molLogger.info(f'forces shape: {self.forces.shape}')
+            
             # add units attributes
             replicaGroup["coords"].attrs["unit"] = "Angstrom"
             replicaGroup["forces"].attrs["unit"] = "kcal/mol/Angstrom"
