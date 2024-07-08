@@ -86,6 +86,9 @@ def run(scheduler, args, batch_idx):
             tmplogfile = tmpFile.replace(".h5", ".txt")
             
             resFile = opj(args.finaldatasetPath, pdb, f"mdcath_dataset_{pdb}.h5")
+            if os.path.exists(resFile):
+                logger.info(f"File {resFile} already exists, skipping batch {batch_idx} for {pdb}")
+                continue
             logFile = opj(args.finaldatasetPath, pdb, f"log_{pdb}_batch{batch_idx}.txt")
             
             pdbLogger = logging.getLogger(f"builder_{pdb}")
