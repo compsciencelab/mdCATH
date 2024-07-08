@@ -124,10 +124,11 @@ def run(scheduler, args, batch_idx):
                         except AssertionError as e:
                             pdbLogger.error(e)
                             continue
-                        
-                        Analyzer.computeProperties()
-                        Analyzer.trajAnalysis(trajFiles, batch_idx)
+
+                        Analyzer.readXTC(trajFiles, batch_idx)
                         Analyzer.readDCD(dcdFiles, batch_idx)
+                        Analyzer.trajAnalysis()
+                        
                         if not hasattr(Analyzer, "forces") or not hasattr(Analyzer, "coords"):
                             pdbLogger.error(f"forces or traj not found for {pdb} {temp} {repl}")
                             continue
