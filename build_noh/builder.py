@@ -48,11 +48,11 @@ class Payload:
   
 def run(scheduler, batch_idx, data_dir, input_dir, output_dir='.'):
     """Extract information from the mdCATH dataset and write them to a h5 file per batch"""
-    pbbIndices = scheduler.process(batch_idx)
-    
+    pdb_idxs = scheduler.process(batch_idx)
+    desc = pdb_idxs[0] if len(pdb_idxs) == 1 else "reading PDBs"
     with tempfile.NamedTemporaryFile() as tmp:
         tmp_file = tmp.name
-        for pdb in tqdm(pbbIndices, total=len(pbbIndices), desc="processing"):
+        for pdb in tqdm(pdb_idxs, total=len(pdb_idxs), desc=desc):
             with h5py.File(tmp_file, "w") as h5:
                 resfile = opj(output_dir, f"mdcath_noh_dataset_{pdb}.h5")    
                 if os.path.exists(resfile):
@@ -140,18 +140,20 @@ def launch():
 
     payload = Payload(scheduler, data_dir, input_dir, output_dir)
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers) as executor:
-        try:
-            results = list(
-                tqdm(
-                    executor.map(payload.runComputation, toRunBatches),
-                    total=len(toRunBatches),
-                )
-            )
-        except Exception as e:
-            print(e)
-            raise e
-    # this return it's needed for the tqdm progress bar
+    error_domains = open("errors_noh_build.txt", "w")
+    results = []
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_batch = {executor.submit(payload.runComputation, batch): batch for batch in toRunBatches}
+        
+        for future in tqdm(concurrent.futures.as_completed(future_to_batch), total=len(toRunBatches)):
+            batch = future_to_batch[future]
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                error_domains.write(f"Batch {batch} failed with exception: {e}\n")
+                # Optionally, log the error and continue with the next computation
+
     return results
 
 

@@ -17,11 +17,22 @@ from scheduler import ComputationScheduler
 from trajManager import TrajectoryFileManager
 from utils import readPDBs, save_argparse, LoadFromFile
 
+
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("builder")
+
+def check_readers(coords, forces, numTrajFiles):
+    # Considering that each trajectory file has 10 frames, one frame save every 1ns
+    nframes = coords.shape[2]
+    if nframes/10 != numTrajFiles:
+        return False
+    else:
+        return True
+    
+    
 
 def get_argparse():
     parser = argparse.ArgumentParser(description="mdCATH dataset builder", prefix_chars="--")
@@ -80,7 +91,7 @@ def run(scheduler, args, batch_idx):
     pdb_idxs = scheduler.process(batch_idx)
     trajFileManager = TrajectoryFileManager(args.gpugridResultsPath, args.concatTrajPath)
     desc = pdb_idxs[0] if len(pdb_idxs) == 1 else "reading PDBs"
-    for pdb in tqdm(pdb_idxs, total=len(pdb_idxs), desc=desc):    
+    for pdb in tqdm(pdb_idxs, total=len(pdb_idxs), desc=desc): 
         with tempfile.TemporaryDirectory() as temp:
             
             tmpFile = opj(temp, f"mdcath_dataset_{pdb}.h5")
@@ -90,7 +101,7 @@ def run(scheduler, args, batch_idx):
             if os.path.exists(resFile):
                 logger.info(f"File {resFile} already exists, skipping batch {batch_idx} for {pdb}")
                 continue
-            logFile = opj(args.finaldatasetPath, pdb, f"log_{pdb}_batch{batch_idx}.txt")
+            logFile = opj(args.finaldatasetPath, pdb, f"log_{pdb}.txt")
             
             pdbLogger = logging.getLogger(f"builder_{pdb}")
             file_handler = logging.FileHandler(tmplogfile)
@@ -132,16 +143,27 @@ def run(scheduler, args, batch_idx):
                             continue
 
                         Analyzer.readXTC(trajFiles, batch_idx)
-                        Analyzer.readDCD(dcdFiles, batch_idx)
-                        Analyzer.trajAnalysis()
-                        
-                        if not hasattr(Analyzer, "forces") or not hasattr(Analyzer, "coords"):
-                            pdbLogger.error(f"forces or traj not found for {pdb} {temp} {repl}")
+                        if Analyzer.coords is None:
+                            pdbLogger.error(f"None coords for {pdb}_{temp}_{repl} and batch {batch_idx}")
                             continue
+                        
+                        Analyzer.readDCD(dcdFiles, batch_idx)
+                        
+                        if Analyzer.forces is None:
+                            pdbLogger.error(f"None forces for {pdb}_{temp}_{repl} and batch {batch_idx}")
+                            continue
+                        
+                        status = check_readers(coords, forces, len(trajFiles)) # True if the number of frames is correct
+                        
+                        if not status:
+                            Analyzer.fix_readers(trajFiles, dcdFiles)
+                        
+                        Analyzer.trajAnalysis()
                         
                         # write the data to the h5 file for the replica
                         Analyzer.write_toH5(molGroup=None, replicaGroup=pdbTempReplGroup, attrs=args.trajAttrs, datasets=args.trajDatasets)
                         pdbLogger.info('\n')
+                
                 # If no replica was found, skip the molecule. The molecule will be written to the h5 file only if it has at least one replica at one temperature
                 if not hasattr(Analyzer, "molAttrs"):
                     pdbLogger.error(f"molAttrs not found for {pdb} and batch {batch_idx}")
@@ -187,18 +209,20 @@ def launch():
 
     payload = Payload(scheduler, args)
 
-    with concurrent.futures.ProcessPoolExecutor(args.maxWorkers) as executor:
-        try:
-            results = list(
-                tqdm(
-                    executor.map(payload.runComputation, toRunBatches),
-                    total=len(toRunBatches),
-                )
-            )
-        except Exception as e:
-            print(e)
-            raise e
-    # this return it's needed for the tqdm progress bar
+    error_domains = open("errors.txt", "w")
+    results = []
+    with concurrent.futures.ProcessPoolExecutor(max_workers=args.maxWorkers) as executor:
+        future_to_batch = {executor.submit(payload.runComputation, batch): batch for batch in toRunBatches}
+        
+        for future in tqdm(concurrent.futures.as_completed(future_to_batch), total=len(toRunBatches)):
+            batch = future_to_batch[future]
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                error_domains.write(f"Batch {batch} failed with exception: {e}\n")
+                # Optionally, log the error and continue with the next computation
+
     return results
 
 if __name__ == "__main__":
