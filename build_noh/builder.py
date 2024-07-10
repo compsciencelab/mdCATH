@@ -48,11 +48,11 @@ class Payload:
   
 def run(scheduler, batch_idx, data_dir, input_dir, output_dir='.'):
     """Extract information from the mdCATH dataset and write them to a h5 file per batch"""
-    pbbIndices = scheduler.process(batch_idx)
-    
+    pdb_idxs = scheduler.process(batch_idx)
+    desc = pdb_idxs[0] if len(pdb_idxs) == 1 else "reading PDBs"
     with tempfile.NamedTemporaryFile() as tmp:
         tmp_file = tmp.name
-        for pdb in tqdm(pbbIndices, total=len(pbbIndices), desc="processing"):
+        for pdb in tqdm(pdb_idxs, total=len(pdb_idxs), desc=desc):
             with h5py.File(tmp_file, "w") as h5:
                 resfile = opj(output_dir, f"mdcath_noh_dataset_{pdb}.h5")    
                 if os.path.exists(resfile):
