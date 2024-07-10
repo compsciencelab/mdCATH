@@ -24,6 +24,16 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysi
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("builder")
 
+def check_readers(coords, forces, numTrajFiles):
+    # Considering that each trajectory file has 10 frames, one frame save every 1ns
+    nframes = coords.shape[2]
+    if nframes/10 != numTrajFiles:
+        return False
+    else:
+        return True
+    
+    
+
 def get_argparse():
     parser = argparse.ArgumentParser(description="mdCATH dataset builder", prefix_chars="--")
     
@@ -133,11 +143,20 @@ def run(scheduler, args, batch_idx):
                             continue
 
                         Analyzer.readXTC(trajFiles, batch_idx)
+                        if Analyzer.coords is None:
+                            pdbLogger.error(f"None coords for {pdb}_{temp}_{repl} and batch {batch_idx}")
+                            continue
+                        
                         Analyzer.readDCD(dcdFiles, batch_idx)
                         
-                        if Analyzer.coords is None or Analyzer.forces is None:
-                            pdbLogger.error(f"Trajectory files not found for {pdb}_{temp}_{repl} and batch {batch_idx}")
+                        if Analyzer.forces is None:
+                            pdbLogger.error(f"None forces for {pdb}_{temp}_{repl} and batch {batch_idx}")
                             continue
+                        
+                        status = check_readers(coords, forces, len(trajFiles)) # True if the number of frames is correct
+                        
+                        if not status:
+                            Analyzer.fix_readers(trajFiles, dcdFiles)
                         
                         Analyzer.trajAnalysis()
                         

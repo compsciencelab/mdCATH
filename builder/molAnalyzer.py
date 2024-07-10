@@ -305,3 +305,42 @@ class molAnalyzer:
         else:
             self.molLogger.error("Only one of the two groups could be None")
             return
+
+    def fix_readers(self, xtc_files, dcd_files):
+        """ In some cases the dcd or xtc files are corrupted, but htmd is able to read and load all 
+        the frames of a list even if the corrupted file is in the middle, so cutting the frames to the 
+        min frame between coords and forces is not enough. This function is used to fix the mismatched 
+        frames using a for loop and truncating the frames until the xtc and dcd files have the same number 
+        of frames."""
+        
+        for i, (xtc, dcd) in enumerate(zip(xtc_files, dcd_files)):
+            fixmol = self.mol.copy()
+            
+            # xtc 
+            fixmol.read(xtc)
+            xtc_frames = fixmol.numFrames
+            
+            # dcd 
+            fixmol.read(dcd) 
+            dcd_frames = fixmol.numFrames
+            
+            if xtc_frames != dcd_frames:
+                self.molLogger.info(f"Trajectory {i} has different number of frames: XTC [{xtc_frames}] vs DCD[{dcd_frames}]")
+                self.molLogger.info(f'dcd file: {dcd}')
+                self.molLogger.info(f'xtc file: {xtc}')
+            
+                last_frame = num_frames + min(xtc_frames, dcd_frames)
+                self.molLogger.info(f"Last frame: {last_frame}")
+                
+                # fix coords and forces shapes
+                self.coords = self.coords[:, :, :last_frame]
+                self.forces = self.forces[:, :, :last_frame]
+                self.molLogger.info(f"FixReaders adjusted coords shape: {self.coords.shape}, forces shape: {self.forces.shape}")
+                
+                break # stop the loop
+            
+            else:
+                num_frames += xtc_frames
+        
+
+        
