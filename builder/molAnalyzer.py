@@ -138,7 +138,8 @@ class molAnalyzer:
                 f"TRAJECTORY LOADING ERROR ON BATCH:{batch_idx} | SIM: {os.path.basename(xtcFiles[0]).split('-')[0]}"
             )
             self.molLogger.error(e)
-            return None
+            self.coords = None
+            return
         
         # COORDS 
         self.coords = self.trajmol.coords.copy()  # Angstrom (numAtoms, 3, numFrames)
@@ -155,7 +156,8 @@ class molAnalyzer:
                 f"FORCE LOADING ERROR ON BATCH:{batch_idx} | SIM: {os.path.basename(dcdFiles[0]).split('-')[0]}"
             )
             self.molLogger.error(e)
-            return None
+            self.forces = None
+            return
 
         if self.forces.shape != self.coords.shape:
             self.molLogger.warning(
