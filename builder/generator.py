@@ -17,6 +17,7 @@ from scheduler import ComputationScheduler
 from trajManager import TrajectoryFileManager
 from utils import readPDBs, save_argparse, LoadFromFile
 
+
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysis")
 
@@ -80,7 +81,7 @@ def run(scheduler, args, batch_idx):
     pdb_idxs = scheduler.process(batch_idx)
     trajFileManager = TrajectoryFileManager(args.gpugridResultsPath, args.concatTrajPath)
     desc = pdb_idxs[0] if len(pdb_idxs) == 1 else "reading PDBs"
-    for pdb in tqdm(pdb_idxs, total=len(pdb_idxs), desc=desc):    
+    for pdb in tqdm(pdb_idxs, total=len(pdb_idxs), desc=desc): 
         with tempfile.TemporaryDirectory() as temp:
             
             tmpFile = opj(temp, f"mdcath_dataset_{pdb}.h5")
@@ -189,18 +190,20 @@ def launch():
 
     payload = Payload(scheduler, args)
 
-    with concurrent.futures.ProcessPoolExecutor(args.maxWorkers) as executor:
-        try:
-            results = list(
-                tqdm(
-                    executor.map(payload.runComputation, toRunBatches),
-                    total=len(toRunBatches),
-                )
-            )
-        except Exception as e:
-            print(e)
-            raise e
-    # this return it's needed for the tqdm progress bar
+    error_domains = open("errors.txt", "w")
+    results = []
+    with concurrent.futures.ProcessPoolExecutor(max_workers=args.maxWorkers) as executor:
+        future_to_batch = {executor.submit(payload.runComputation, batch): batch for batch in toRunBatches}
+        
+        for future in tqdm(concurrent.futures.as_completed(future_to_batch), total=len(toRunBatches)):
+            batch = future_to_batch[future]
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                error_domains.write(f"Batch {batch} failed with exception: {e}\n")
+                # Optionally, log the error and continue with the next computation
+
     return results
 
 if __name__ == "__main__":
