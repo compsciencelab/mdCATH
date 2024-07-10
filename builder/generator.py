@@ -133,15 +133,17 @@ def run(scheduler, args, batch_idx):
 
                         Analyzer.readXTC(trajFiles, batch_idx)
                         Analyzer.readDCD(dcdFiles, batch_idx)
-                        Analyzer.trajAnalysis()
                         
-                        if not hasattr(Analyzer, "forces") or not hasattr(Analyzer, "coords"):
-                            pdbLogger.error(f"forces or traj not found for {pdb} {temp} {repl}")
+                        if Analyzer.coords is None or Analyzer.forces is None:
+                            pdbLogger.error(f"Trajectory files not found for {pdb}_{temp}_{repl} and batch {batch_idx}")
                             continue
+                        
+                        Analyzer.trajAnalysis()
                         
                         # write the data to the h5 file for the replica
                         Analyzer.write_toH5(molGroup=None, replicaGroup=pdbTempReplGroup, attrs=args.trajAttrs, datasets=args.trajDatasets)
                         pdbLogger.info('\n')
+                
                 # If no replica was found, skip the molecule. The molecule will be written to the h5 file only if it has at least one replica at one temperature
                 if not hasattr(Analyzer, "molAttrs"):
                     pdbLogger.error(f"molAttrs not found for {pdb} and batch {batch_idx}")
