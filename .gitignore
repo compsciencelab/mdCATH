@@ -157,3 +157,5 @@ analysis/plot_metrics_from_csv.py
 test_dcdLoaders/*
 analysis/note_reproducibility.ipynb
 check_reproducibility/check.py
+analysis/recover_corrupted_files_from_log.ipynb
+build_noh/copy_files.py
