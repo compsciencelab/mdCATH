@@ -307,11 +307,11 @@ class molAnalyzer:
             return
 
     def fix_readers(self, xtc_files, dcd_files):
-        """ In some cases the dcd or xtc files are corrupted, but htmd is able to read and load all 
-        the frames of a list even if the corrupted file is in the middle, so cutting the frames to the 
-        min frame between coords and forces is not enough. This function is used to fix the mismatched 
-        frames using a for loop and truncating the frames until the xtc and dcd files have the same number 
-        of frames."""
+        """ In some instances, the DCD or XTC files may be corrupted. Moleculekit can still read and load all 
+        the frames from a list, even if a corrupted file is included in the sequence. Simply cutting the frames 
+        to match the minimum frame count between coordinates and forces is not enough. This function addresses the
+        issue by employing a for loop to systematically truncate the frames, ensuring that the XTC and DCD files 
+        ultimately contain the same number of frames. """
         
         for i, (xtc, dcd) in enumerate(zip(xtc_files, dcd_files)):
             fixmol = self.mol.copy()
@@ -341,6 +341,3 @@ class molAnalyzer:
             
             else:
                 num_frames += xtc_frames
-        
-
-        
