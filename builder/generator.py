@@ -119,24 +119,15 @@ def run(scheduler, args, batch_idx):
             file_handler.setLevel(logging.INFO)
             pdbLogger.addHandler(file_handler)
             pdbLogger.setLevel(logging.INFO)
-
-            pdbLogger.info(
-                f"Starting the dataset generation for {pdb} and batch {batch_idx}"
-            )
-
-            if os.path.exists(resFile):
-                pdbLogger.info(
-                    f"File {resFile} already exists, removing it due to previous errors on the pdb idxs"
-                )
-                os.remove(resFile)
-            pdbFilePath = glob(opj(args.gpugridInputsPath, pdb, "*/*.pdb"))[
-                0
-            ]  # get structure.pdb from input folder (same for all replicas and temps)
+                    
+            pdbLogger.info(f"Starting the dataset generation for {pdb} and batch {batch_idx}")
+            
+            pdbFilePath = glob(opj(args.gpugridInputsPath, pdb, "*/*.pdb"))[0] # get structure.pdb from input folder (same for all replicas and temps)
             if not os.path.exists(pdbFilePath):
                 logger.warning(f"{pdb} does not exist")
                 continue
-
-            with h5py.File(tmpFile, "w", libver="latest") as h5:
+            
+            with h5py.File(tmpFile, "w", libver='latest') as h5:
                 h5.attrs["layout"] = "mdcath-only-protein-v1.0"
                 pdbGroup = h5.create_group(pdb)
                 os.makedirs(os.path.dirname(resFile), exist_ok=True)
