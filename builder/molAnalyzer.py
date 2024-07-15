@@ -286,6 +286,8 @@ class molAnalyzer:
             # replica datasets
             for key, value in self.metricAnalysis.items():
                 if key in datasets:
+                    if key == "dssp":
+                        continue # skip dssp dataset
                     replicaGroup.create_dataset(key, data=value)
                     replicaGroup[key].attrs["unit"] = "nm"
 
@@ -301,6 +303,7 @@ class molAnalyzer:
             # add units attributes
             replicaGroup["coords"].attrs["unit"] = "Angstrom"
             replicaGroup["forces"].attrs["unit"] = "kcal/mol/Angstrom"
+            replicaGroup["box"].attrs["unit"] = "nm"
 
         else:
             self.molLogger.error("Only one of the two groups could be None")
