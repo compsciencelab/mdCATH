@@ -288,9 +288,9 @@ class molAnalyzer:
             # replica datasets
             for key, value in self.metricAnalysis.items():
                 if key in datasets:
-                    if key == "dssp":
-                        continue # skip dssp dataset
                     replicaGroup.create_dataset(key, data=value)
+                    if key == "dssp":
+                        continue # dssp does not have unit
                     replicaGroup[key].attrs["unit"] = "nm"
 
             replicaGroup.create_dataset("box", data=self.box)
