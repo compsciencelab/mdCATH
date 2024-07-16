@@ -48,7 +48,8 @@ if __name__ == '__main__':
     if file_type == 'analysis':
         to_recheck = open('log_doms_torecheck_mdcath_analysis_update.txt', 'a')
     basename = 'mdcath_noh' if noh_mode else 'mdcath' 
-    with h5py.File(opj('h5files', origin_file), mode='a') as dest:
+    
+    with h5py.File(opj('h5files', origin_file), mode='a', libver='latest') as dest:
         for dom in tqdm(pdb_list, total=len(pdb_list)):
             source_file = f"{basename}_dataset_{dom}.h5"
             if dom in dest:
@@ -97,7 +98,7 @@ if __name__ == '__main__':
                                     repl_group.attrs['max_num_neighbors_9A'] = get_max_neighbors(source[dom][temp][replica]['coords'][:], 9.5) # use 9.5 for confidence on the 9A
                                     
                                     # The noh dataset does not have the dssp information, to store it in the source file we need to read the dssp from the original dataset                             
-                                    with h5py.File(opj('/workspace3/mdcath', f"mdcath_dataset_{dom}.h5"), "r") as ref_h5:
+                                    with h5py.File(opj('/workspace8/antoniom/mdcath_htmd', dom, f"mdcath_dataset_{dom}.h5"), "r") as ref_h5:
                                         repl_group.attrs['min_gyration_radius'] = np.min(ref_h5[dom][temp][replica]['gyrationRadius'][:])
                                         repl_group.attrs['max_gyration_radius'] = np.max(ref_h5[dom][temp][replica]['gyrationRadius'][:])
                                         
