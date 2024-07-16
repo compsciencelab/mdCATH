@@ -317,32 +317,69 @@ class molAnalyzer:
         to match the minimum frame count between coordinates and forces is not enough. This function addresses the
         issue by employing a for loop to systematically truncate the frames, ensuring that the XTC and DCD files 
         ultimately contain the same number of frames. """
-        
+        sanitize = False
+        num_frames = 0
+
         for i, (xtc, dcd) in enumerate(zip(xtc_files, dcd_files)):
             fixmol = self.mol.copy()
-            
-            # xtc 
-            fixmol.read(xtc)
-            xtc_frames = fixmol.numFrames
-            
+            # xtc
+            try: 
+                fixmol.read(xtc)
+                xtc_frames = fixmol.numFrames
+            except Exception as e:
+                self.molLogger.error(f"Error reading xtc file: {xtc}")
+                self.molLogger.error(e)
+                sanitize = True
+
             # dcd 
-            fixmol.read(dcd) 
-            dcd_frames = fixmol.numFrames
+            try: 
+                fixmol.read(dcd) 
+                dcd_frames = fixmol.numFrames
+            except Exception as e:
+                self.molLogger.error(f"Error reading dcd file: {dcd}")
+                self.molLogger.error(e)
+                sanitize = True
             
-            if xtc_frames != dcd_frames:
-                self.molLogger.info(f"Trajectory {i} has different number of frames: XTC [{xtc_frames}] vs DCD[{dcd_frames}]")
-                self.molLogger.info(f'dcd file: {dcd}')
-                self.molLogger.info(f'xtc file: {xtc}')
-            
-                last_frame = num_frames + min(xtc_frames, dcd_frames)
-                self.molLogger.info(f"Last frame: {last_frame}")
+            if xtc_frames != dcd_frames or sanitize == True:
+                if sanitize == False:
+                    self.molLogger.info(f"Trajectory {i} has different number of frames: XTC [{xtc_frames}] vs DCD[{dcd_frames}]")
+                    self.molLogger.info(f'dcd file: {dcd}')
+                    self.molLogger.info(f'xtc file: {xtc}')
+                    last_frame = num_frames + min(xtc_frames, dcd_frames)
+                    last_file = i
+                    self.molLogger.info(f"Last frame: {last_frame}")
                 
-                # fix coords and forces shapes
-                self.coords = self.coords[:, :, :last_frame]
-                self.forces = self.forces[:, :, :last_frame]
-                self.molLogger.info(f"FixReaders adjusted coords shape: {self.coords.shape}, forces shape: {self.forces.shape}")
+                else:
+                    last_frame = num_frames
+                    last_file = i-1
+                # read the trajectory and filter only the protein atoms to get the correct number of frames also in trajAnalysis
+                # if the exception occur in reading one by one, then we need to consder until the file i-1
+                self.trajmol = self.mol.copy()
+                self.trajmol.read(xtc_files[:last_file+1])
+                self.trajmol.filter("protein")
+                self.trajmol.dropFrames(keep=np.arange(last_frame))
+                
+                # fix coords and forces shapes, if None then the files need to be read again and the coords and forces will be updated
+                if self.coords is not None:
+                    self.coords = self.coords[:, :, :last_frame]
+                else:
+                    self.molLogger.error("Coords is None")
+                    self.coords = self.trajmol.coords.copy()
+                
+                if self.forces is not None:
+                    self.forces = self.forces[:, :, :last_frame]
+                else:
+                    self.molLogger.error("Forces is None")
+                    self.dcdmol = self.mol.copy()
+                    self.dcdmol.read(dcd_files[:last_file+1])
+                    self.dcdmol.filter("protein")
+                    self.dcdmol.dropFrames(keep=np.arange(last_frame))
+                    self.forces = self.dcdmol.coords.copy()
+                
+                self.molLogger.info(f"FixReaders adjusted coords shape: {self.coords.shape}, forces shape: {self.forces.shape}, trajmol numFrames: {self.trajmol.numFrames}")
                 
                 break # stop the loop
             
             else:
                 num_frames += xtc_frames
+        return
