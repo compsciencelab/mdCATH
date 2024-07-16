@@ -12,11 +12,26 @@ from os.path import join as opj
 from tools import get_secondary_structure_compositions, get_max_neighbors, get_solid_secondary_structure, readPDBs
 sys.path.append("/shared/antoniom/buildCATHDataset/builder/")
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('fixer')
-fh = logging.FileHandler('fix.log')
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+# Create a custom logger
+logger = logging.getLogger('append_info_toh5')
+logger.setLevel(logging.INFO)  # Set the logger level to the lowest level you want to log
+
+# Create handlers
+console_handler = logging.StreamHandler()
+file_handler = logging.FileHandler('append_to_mdcath_analysis.log')
+
+# Set levels for handlers
+console_handler.setLevel(logging.ERROR)  # Only log errors to the console
+file_handler.setLevel(logging.INFO)  # Log info and higher level messages to the file
+
+# Create formatters and add them to handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 
 
 if __name__ == '__main__':
