@@ -45,7 +45,8 @@ if __name__ == '__main__':
     file_type = 'analysis' 
     noh_mode = False
     pdb_list = readPDBs(pdb_list_file)
-    
+    if file_type == 'analysis':
+        to_recheck = open('log_doms_torecheck_mdcath_analysis_update.txt', 'a')
     basename = 'mdcath_noh' if noh_mode else 'mdcath' 
     with h5py.File(opj('h5files', origin_file), mode='a') as dest:
         for dom in tqdm(pdb_list, total=len(pdb_list)):
@@ -76,11 +77,19 @@ if __name__ == '__main__':
                                 repl_group.create_dataset('rmsd', data = source[dom][temp][replica]['rmsd'][:])
                                 repl_group.create_dataset('rmsf', data = source[dom][temp][replica]['rmsf'][:])
                                 repl_group.create_dataset('box', data = source[dom][temp][replica]['box'][:])
-                                solid_secondary_structure = np.zeros(source[dom][temp][replica]['dssp'].shape[0])
-                                for i in range(source[dom][temp][replica]['dssp'].shape[0]):
-                                    solid_secondary_structure[i] = get_solid_secondary_structure(source[dom][temp][replica]['dssp'][i])
                                 
-                                repl_group.create_dataset('solid_secondary_structure', data=solid_secondary_structure)
+                                try: 
+                                    solid_secondary_structure = np.zeros(source[dom][temp][replica]['dssp'].shape[0])
+                                    for i in range(source[dom][temp][replica]['dssp'].shape[0]):
+                                        solid_secondary_structure[i] = get_solid_secondary_structure(source[dom][temp][replica]['dssp'][i])
+                                    
+                                    repl_group.create_dataset('solid_secondary_structure', data=solid_secondary_structure)
+                                except Exception as e:
+                                    logger.error(f"Error in {dom} {temp} {replica}")
+                                    logger.error(e)
+                                    to_recheck.write(f"{dom} {temp} {replica}\n")
+                                    continue
+                                    
                             
                             elif file_type == 'source':
                                 if noh_mode:
