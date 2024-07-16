@@ -158,14 +158,16 @@ class molAnalyzer:
             self.molLogger.error(e)
             self.forces = None
             return
-
-        if self.forces.shape != self.coords.shape:
-            self.molLogger.warning(
-                f"Forces {self.forces.shape} and Coords {self.coords.shape} shapes do not match"
-            )
-            last_idx = min(self.forces.shape[2], self.coords.shape[2])
-            self.forces = self.forces[:, :, :last_idx]
-            self.coords = self.coords[:, :, :last_idx]
+        
+        if self.coords is not None:
+            if self.forces.shape != self.coords.shape:
+                self.molLogger.warning(
+                    f"Forces {self.forces.shape} and Coords {self.coords.shape} shapes do not match"
+                )
+                last_idx = min(self.forces.shape[2], self.coords.shape[2])
+                self.forces = self.forces[:, :, :last_idx]
+                self.coords = self.coords[:, :, :last_idx]
+            
     
     def trajAnalysis(self):
         """Perform the analysis of the trajectory"""
