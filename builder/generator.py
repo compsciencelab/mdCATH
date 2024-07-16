@@ -127,13 +127,13 @@ def run(scheduler, args, batch_idx):
                 logger.warning(f"{pdb} does not exist")
                 continue
             
+            os.makedirs(os.path.dirname(resFile), exist_ok=True)
+            
             with h5py.File(tmpFile, "w", libver='latest') as h5:
+                
                 h5.attrs["layout"] = "mdcath-only-protein-v1.0"
                 pdbGroup = h5.create_group(pdb)
-                os.makedirs(os.path.dirname(resFile), exist_ok=True)
-                Analyzer = molAnalyzer(
-                    pdbFilePath, file_handler, os.path.dirname(resFile)
-                )
+                Analyzer = molAnalyzer(pdbFilePath, file_handler, os.path.dirname(resFile))
                 Analyzer.computeProperties()
 
                 for temp in args.temperatures:
@@ -181,7 +181,7 @@ def run(scheduler, args, batch_idx):
                             Analyzer.fix_readers(trajFiles, dcdFiles)
 
                         Analyzer.trajAnalysis()
-
+                        
                         # write the data to the h5 file for the replica
                         Analyzer.write_toH5(
                             molGroup=None,
@@ -197,16 +197,15 @@ def run(scheduler, args, batch_idx):
                         f"molAttrs not found for {pdb} and batch {batch_idx}"
                     )
                     continue
-
-                # write the data to the h5 file for the molecule
+                
+                # write the data to the h5 file for the molecule 
                 Analyzer.write_toH5(
-                    molGroup=pdbGroup,
-                    replicaGroup=None,
-                    attrs=args.pdbAttrs,
+                    molGroup=pdbGroup, 
+                    replicaGroup=None, 
+                    attrs=args.pdbAttrs, 
                     datasets=args.pdbDatasets,
-                )
-
-            os.makedirs(opj(args.finaldatasetPath, pdb), exist_ok=True)
+                )  
+            
             shutil.move(tmpFile, resFile)
             pdbLogger.info(
                 f"\n{pdb} batch {batch_idx} completed successfully added to mdCATH dataset: {args.finaldatasetPath}"
