@@ -26,16 +26,16 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="MDAnalysi
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("builder")
 
-
-def check_readers(coords, numTrajFiles):
+def check_readers(coords, forces, numTrajFiles):
     # Considering that each trajectory file has 10 frames, one frame save every 1ns
+    if coords is None or forces is None:
+        return False
     nframes = coords.shape[2]
     if nframes / 10 != numTrajFiles:
         return False
     else:
         return True
-
-
+    
 def get_argparse():
     parser = argparse.ArgumentParser(
         description="mdCATH dataset builder", prefix_chars="--"
@@ -156,30 +156,16 @@ def run(scheduler, args, batch_idx):
                             continue
 
                         Analyzer.readXTC(trajFiles, batch_idx)
-                        if Analyzer.coords is None:
-                            pdbLogger.error(
-                                f"None coords for {pdb}_{temp}_{repl} and batch {batch_idx}"
-                            )
-                            continue
                         Analyzer.readDCD(dcdFiles, batch_idx)
-
-                        if Analyzer.forces is None:
-                            pdbLogger.error(
-                                f"None forces for {pdb}_{temp}_{repl} and batch {batch_idx}"
-                            )
-                            continue
-
-                        status = check_readers(
-                            Analyzer.coords, len(trajFiles)
-                        )  # True if the number of frames is correct
-
+                        
+                        status = check_readers(Analyzer.coords, Analyzer.forces, len(trajFiles)) # True if the number of frames is correct
                         if not status:
                             pdbLogger.error(
                                 f"Number of frames is not correct for {pdb}_{temp}_{repl} and batch {batch_idx}"
                             )
                             pdbLogger.error(f"Fixing the readers")
                             Analyzer.fix_readers(trajFiles, dcdFiles)
-
+                        
                         Analyzer.trajAnalysis()
                         
                         # write the data to the h5 file for the replica
