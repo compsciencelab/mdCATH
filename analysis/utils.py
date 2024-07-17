@@ -461,7 +461,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
         if True, the solid fraction is simplified to 3 types: α, β, and other (dssp based)
     """
     np.random.seed(7)
-    superfamiliy_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
+    superfamily_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
     super_family_json = json.load(open("/shared/antoniom/buildCATHDataset/support/cath_info.json", "r"))
     mdcath_dir = "/workspace8/antoniom/mdcath_htmd"
 
@@ -492,7 +492,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
             all_alpha_beta = []
             accepted_superfamilies_domains = 0
             
-            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Solid Fraction vs Time {superfamiliy_labels[sf]}"):
+            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Solid Fraction vs Time {superfamily_labels[sf]}"):
                 if num_pdbs is not None and accepted_superfamilies_domains >= num_pdbs:
                     break  # Exit loop if reached the specified number of PDBs for the superfamily
                 super_family_id = int(super_family_json[pdb]['superfamily_id'].split(".")[0])
@@ -519,7 +519,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
                         time_points.extend(np.arange(0, len(normalized_ss_time), 1))
                         all_alpha_beta.extend(normalized_ss_time)
             
-            print(f"Number of domains in {superfamiliy_labels[sf]} superfamily : {accepted_superfamilies_domains}")         
+            print(f"Number of domains in {superfamily_labels[sf]} superfamily : {accepted_superfamilies_domains}")         
             
             # Create 2D histogram
             hist, xedges, yedges = np.histogram2d(time_points, all_alpha_beta, bins=50, range=[[0, 450], [0, 1.5]], density=True)
@@ -527,15 +527,15 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
 
             # Axis labels and title
             if col == 0:
-                ax.set_ylabel(f"{temp}K\nRel. frac. of α+β structure", fontsize=18) 
+                ax.set_ylabel(f"{temp}K\nRel. frac. of α+β structure", fontsize=20) 
             else:
                 ax.tick_params(axis='y', which='both', left=True, right=False, labelleft=False)
             if row == nRows - 1:
-                ax.set_xlabel("Time (ns)", fontsize=18)
+                ax.set_xlabel("Time (ns)", fontsize=20)
             else:
                 ax.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=False)
 
-            ax.set_title(superfamiliy_labels[sf] if row == 0 else "", fontsize=18)
+            ax.set_title(superfamily_labels[sf] if row == 0 else "", fontsize=21)
             ax.set_xlim(0, 450)
             ax.set_ylim(0, 1.5)
     
@@ -563,7 +563,7 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
     '''
     
     np.random.seed(7)
-    superfamiliy_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
+    superfamily_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
     super_family_json = json.load(open("/shared/antoniom/buildCATHDataset/support/cath_info.json", "r"))
     mdcath_dir = "/workspace8/antoniom/mdcath_htmd"
 
@@ -587,7 +587,7 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
             all_beta = []
             all_coil = []
             
-            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Ternary Plot for temp {temp} {superfamiliy_labels[sf]}", ):
+            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Ternary Plot for temp {temp} {superfamily_labels[sf]}", ):
                 if num_pdbs is not None and accepted_superfamilies_domains >= num_pdbs:
                     break  # Exit loop if reached the specified number of PDBs for the superfamily
                 super_family_id = int(super_family_json[pdb]['superfamily_id'].split(".")[0])
@@ -625,7 +625,7 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
                             #fontweight='bold',
                             )
             if row == 0:
-                ax.annotate(superfamiliy_labels[sf], 
+                ax.annotate(superfamily_labels[sf], 
                             xy=(0.5, 0.5), 
                             xytext=(0.5, 1.45), 
                             fontsize=18, 
@@ -636,7 +636,7 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
                             #fontweight='bold',
                             )
     plt.tight_layout()
-    plt.savefig(opj(output_dir, f"ternary_plot_{(str(num_pdbs) + 'Samples_') if num_pdbs is not None else ''}4Superfamilies{'_simplified' if simplified else ''}.png"), dpi=600)
+    plt.savefig(opj(output_dir, f"ternary_plot_{(str(num_pdbs) + 'Samples_') if num_pdbs is not None else ''}4Superfamilies.png"), dpi=600)
     plt.close()        
 
 def plot_combine_metrics(h5metrics, output_dir):
