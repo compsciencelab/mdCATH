@@ -10,12 +10,12 @@ import matplotlib.colors as mcolors
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 # Set global plotting parameters
-plt.rcParams.update({'font.size': 16,
-                    'axes.labelsize': 16,
-                    'axes.titlesize': 16,
-                    'xtick.labelsize': 14,
-                    'ytick.labelsize': 14,
-                    'legend.fontsize': 14,
+plt.rcParams.update({'font.size': 18,
+                    'axes.labelsize': 18,
+                    'axes.titlesize': 20,
+                    'xtick.labelsize': 16,
+                    'ytick.labelsize': 16,
+                    'legend.fontsize': 16,
                     })
 
 def get_stats(data, metric=""):
