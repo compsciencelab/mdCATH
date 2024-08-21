@@ -59,7 +59,7 @@ def run(scheduler, batch_idx, data_dir, output_dir='.', file_type='source', noh=
     
     with tempfile.NamedTemporaryFile() as tmp:
         tmp_file = tmp.name
-        with h5py.File(tmp_file, "w") as h5:
+        with h5py.File(tmp_file, "w", libver='latest') as h5:
             for i, pdb in tqdm(enumerate(pdb_idxs), total=len(pdb_idxs), desc=f"processing batch {batch_idx}"):                
                 h5_file = opj(data_dir, f"{basename}_dataset_{pdb}.h5")
                 if not os.path.exists(h5_file):

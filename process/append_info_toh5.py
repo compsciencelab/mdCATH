@@ -12,11 +12,26 @@ from os.path import join as opj
 from tools import get_secondary_structure_compositions, get_max_neighbors, get_solid_secondary_structure, readPDBs
 sys.path.append("/shared/antoniom/buildCATHDataset/builder/")
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('fixer')
-fh = logging.FileHandler('fix.log')
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+# Create a custom logger
+logger = logging.getLogger('append_info_toh5')
+logger.setLevel(logging.INFO)  # Set the logger level to the lowest level you want to log
+
+# Create handlers
+console_handler = logging.StreamHandler()
+file_handler = logging.FileHandler('append_to_mdcath_analysis.log')
+
+# Set levels for handlers
+console_handler.setLevel(logging.ERROR)  # Only log errors to the console
+file_handler.setLevel(logging.INFO)  # Log info and higher level messages to the file
+
+# Create formatters and add them to handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+
+# Add handlers to the logger
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 
 
 if __name__ == '__main__':
@@ -30,9 +45,11 @@ if __name__ == '__main__':
     file_type = 'analysis' 
     noh_mode = False
     pdb_list = readPDBs(pdb_list_file)
-    
+    if file_type == 'analysis':
+        to_recheck = open('log_doms_torecheck_mdcath_analysis_update.txt', 'a')
     basename = 'mdcath_noh' if noh_mode else 'mdcath' 
-    with h5py.File(opj('h5files', origin_file), mode='a') as dest:
+    
+    with h5py.File(opj('h5files', origin_file), mode='a', libver='latest') as dest:
         for dom in tqdm(pdb_list, total=len(pdb_list)):
             source_file = f"{basename}_dataset_{dom}.h5"
             if dom in dest:
@@ -61,11 +78,19 @@ if __name__ == '__main__':
                                 repl_group.create_dataset('rmsd', data = source[dom][temp][replica]['rmsd'][:])
                                 repl_group.create_dataset('rmsf', data = source[dom][temp][replica]['rmsf'][:])
                                 repl_group.create_dataset('box', data = source[dom][temp][replica]['box'][:])
-                                solid_secondary_structure = np.zeros(source[dom][temp][replica]['dssp'].shape[0])
-                                for i in range(source[dom][temp][replica]['dssp'].shape[0]):
-                                    solid_secondary_structure[i] = get_solid_secondary_structure(source[dom][temp][replica]['dssp'][i])
                                 
-                                repl_group.create_dataset('solid_secondary_structure', data=solid_secondary_structure)
+                                try: 
+                                    solid_secondary_structure = np.zeros(source[dom][temp][replica]['dssp'].shape[0])
+                                    for i in range(source[dom][temp][replica]['dssp'].shape[0]):
+                                        solid_secondary_structure[i] = get_solid_secondary_structure(source[dom][temp][replica]['dssp'][i])
+                                    
+                                    repl_group.create_dataset('solid_secondary_structure', data=solid_secondary_structure)
+                                except Exception as e:
+                                    logger.error(f"Error in {dom} {temp} {replica}")
+                                    logger.error(e)
+                                    to_recheck.write(f"{dom} {temp} {replica}\n")
+                                    continue
+                                    
                             
                             elif file_type == 'source':
                                 if noh_mode:
@@ -73,7 +98,7 @@ if __name__ == '__main__':
                                     repl_group.attrs['max_num_neighbors_9A'] = get_max_neighbors(source[dom][temp][replica]['coords'][:], 9.5) # use 9.5 for confidence on the 9A
                                     
                                     # The noh dataset does not have the dssp information, to store it in the source file we need to read the dssp from the original dataset                             
-                                    with h5py.File(opj('/workspace3/mdcath', f"mdcath_dataset_{dom}.h5"), "r") as ref_h5:
+                                    with h5py.File(opj('/workspace8/antoniom/mdcath_htmd', dom, f"mdcath_dataset_{dom}.h5"), "r") as ref_h5:
                                         repl_group.attrs['min_gyration_radius'] = np.min(ref_h5[dom][temp][replica]['gyrationRadius'][:])
                                         repl_group.attrs['max_gyration_radius'] = np.max(ref_h5[dom][temp][replica]['gyrationRadius'][:])
                                         

@@ -10,18 +10,18 @@ import matplotlib.colors as mcolors
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 # Set global plotting parameters
-plt.rcParams.update({'font.size': 16,
-                    'axes.labelsize': 16,
-                    'axes.titlesize': 16,
-                    'xtick.labelsize': 14,
-                    'ytick.labelsize': 14,
-                    'legend.fontsize': 14,
+plt.rcParams.update({'font.size': 18,
+                    'axes.labelsize': 18,
+                    'axes.titlesize': 20,
+                    'xtick.labelsize': 16,
+                    'ytick.labelsize': 16,
+                    'legend.fontsize': 16,
                     })
 
 def get_stats(data, metric=""):
     # print, mean, std, min, max, median for a specific metric
+    print(f"Stats for mdCATH: {metric}")
     print("--------------------------")
-    print(f"Stats for {metric}")
     print(f"Mean: {np.mean(data)}")
     print(f"Std: {np.std(data)}")
     print(f"Min: {np.min(data)}")
@@ -137,7 +137,7 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
     numFrames = 450 
     deltaFrames = 50 # it's an arbitrary number, in order to not have too different lengths of the trajectories
     # domain figures is the directory where the images of the domains are stored, these are going to be overlapped to the scatter plot
-    domain_figures = '/shared/antoniom/buildCATHDataset/analysis/figures/domain_figure3'
+    domain_figures = '/shared/antoniom/buildCATHDataset/analysis/figures/domains_figure4'
     
     ## cbar common settings ##
     cbar_kws = {"orientation":"vertical", "shrink":0.8, "aspect":40}
@@ -153,8 +153,8 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
         
         ncols = 3
         nrows = math.ceil(numSamples / ncols)
-        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 5), sharex=True, sharey=True)
-        fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.3, wspace=0.2)
+        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 5), sharex=shared_axes, sharey=shared_axes)
+        fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.3, wspace=0.3)
 
         for i, sample in tqdm(enumerate(samples), total=numSamples, desc="GyrRad_solidSS (A)"):
             if nrows == 1 or ncols == 1:  # Single row or column case
@@ -222,7 +222,8 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
                 ax.set_xlim(xmin-0.1, xmax+0.1)
                 ax.set_ylim(ymin-0.1, ymax+0.1)   
                 ax.set_xlabel("Fraction of α+β structure")
-                ax.set_ylabel("Gyration radius (nm)")          
+                ax.set_ylabel("Gyration radius (nm)")
+                ax.set_yticks([round(el,1) for el in np.linspace(ymin+0.1, ymax-0.1, 4)])
                 
         # Colorbar with dedicated space
         cbar_ax = fig.add_axes([0.9, 0.25, 0.02, 0.5])  # x, y, width, height
@@ -230,7 +231,7 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
         cbar.set_label(cbar_label)
         cbar.set_ticks(cbar_ticks)
         cbar.set_ticklabels(cbar_ticklabels)
-        plt.savefig(opj(output_dir, "GyrRad_solidSS_A_domainImages_ShareAxs.png"), dpi=600)
+        plt.savefig(opj(output_dir, f"GyrRad_solidSS_A_domainImages_{'ShareAxs' if shared_axes else ''}.png"), dpi=600)
     
     
     ## HERE WE PLOT A GRID FOR THE SAME SAMPLE BUT DIFFERENT TEMPERATURES (SAME REPLICA) ## 
@@ -241,7 +242,7 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
         fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 5))
         axs = axs.flatten()
         fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.3, wspace=0.35)
-        for i, temp in tqdm(enumerate(list(h5data[sample_i].keys())), total=len(h5data[sample_i].keys()), desc="GyrRad_solidSS"):
+        for i, temp in tqdm(enumerate(list(h5data[sample_i].keys())), total=len(h5data[sample_i].keys()), desc="GyrRad_solidSS (B)"):
             ax = axs[i]
             temp_repl_group = h5data[sample_i][temp][repl]
                             
@@ -278,6 +279,8 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
             ax.set_ylim(ymin, ymax)
             ax.set_xticks([0.3, 0.4, 0.5, 0.6])
             ax.set_yticks([1.3, 1.4, 1.5])   
+            
+        axs[-1].set_yticks([round(el,1) for el in np.linspace(np.min(gr)+0.1, np.max(gr)-0.1, 3)])
         
         cbar_ax = fig.add_axes([0.9, 0.25, 0.02, 0.5])  # x, y, width, height
         cbar = fig.colorbar(scatter, cax=cbar_ax, **cbar_kws)
@@ -296,7 +299,7 @@ def get_solid_fraction(dssp, simplified=False):
     dssp_decoded_float = np.zeros((dssp.shape[0], dssp.shape[1]), dtype=np.float32) # shape (numFrames, numResidues)
     for i in range(dssp.shape[0]):
                 dssp_decoded_float[i] = [floatMap[el.decode()] for el in dssp[i]]
-    solid_fraction_time = np.logical_or(dssp_decoded_float == 0, dssp_decoded_float == 1).mean(axis=0)
+    solid_fraction_time = np.logical_or(dssp_decoded_float == 0, dssp_decoded_float == 1) # shape (numFrames, numResidues)
     return solid_fraction_time
     
 def plot_solidFraction_RMSF(h5metrics, output_dir, numSamples=3, simplified=False, repl='1'):
@@ -306,17 +309,17 @@ def plot_solidFraction_RMSF(h5metrics, output_dir, numSamples=3, simplified=Fals
     """    
     np.random.seed(2)
     samples = np.random.choice(list(h5metrics.keys()), numSamples, replace=False)
-    mdcath_dir = "/workspace3/mdcath"
+    mdcath_dir = "/workspace8/antoniom/mdcath_htmd"
     ncols = 2 # 2 temperatures
     nrows = numSamples
     fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 5))
     fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.35, wspace=0.3)
-    axs = axs.flatten()
     
     for ax_i, sample in tqdm(enumerate(samples), total=len(samples), desc="Solid fraction vs RMSF"):
-        with h5py.File(opj(mdcath_dir, f"mdcath_dataset_{sample}.h5", "r")) as h5file: 
+        with h5py.File(opj(mdcath_dir, sample, f"mdcath_dataset_{sample}.h5"), "r") as h5file: 
             for j, temp in enumerate(['320', '450']):
-                solid_fraction_time = get_solid_fraction(h5file[sample][temp][repl]['dssp'], simplified=simplified)
+                solid_fraction_time = get_solid_fraction(h5file[sample][temp][repl]['dssp'], simplified=simplified) # shape (numFrames, numResidues)
+                solid_fraction_time = solid_fraction_time.mean(axis=0) # mean across the frames
                 rmsf = h5file[sample][temp][repl]['rmsf'][:]
                 ax = axs[ax_i, j]
                 ax.scatter(rmsf, solid_fraction_time, c=np.arange(len(rmsf)), cmap='rainbow')
@@ -332,7 +335,7 @@ def plot_solidFraction_RMSF(h5metrics, output_dir, numSamples=3, simplified=Fals
                 ax.set_ylim(-0.1, 1.1)
 
     plt.tight_layout()
-    plt.savefig(opj(output_dir, "solidFraction_RMSF.png"), dpi=600)
+    plt.savefig(opj(output_dir, f"solidFraction_RMSF_{'simplified' if simplified else ''}.png"), dpi=600)
 
 def get_replicas(mean_across):
     if mean_across == 'all':
@@ -372,7 +375,7 @@ def plot_solidFraction_vs_numResidues(h5metrics, output_dir, mean_across='all', 
     
     temps = ['320', '348', '379', '413', '450'] if temps is None else temps
     replicas = get_replicas(mean_across)
-    mdcath_dir = "/workspace3/mdcath"
+    mdcath_dir = "/workspace8/antoniom/mdcath_htmd"
 
     nPlots = len(temps)
     nCols = nPlots if nPlots < 3 else 3
@@ -458,13 +461,13 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
         if True, the solid fraction is simplified to 3 types: α, β, and other (dssp based)
     """
     np.random.seed(7)
-    superfamiliy_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
+    superfamily_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
     super_family_json = json.load(open("/shared/antoniom/buildCATHDataset/support/cath_info.json", "r"))
-    temps = ['320', '348', '379', '413', '450'] if temps is None else temps
-    mdcath_dir = "/workspace3/mdcath"
+    mdcath_dir = "/workspace8/antoniom/mdcath_htmd"
 
     temps = ['320', '348', '379', '413', '450'] if temps is None else temps
     replicas = get_replicas(mean_across)
+    # Determine number of columns based on the number of superfamilies considered 
     superfamilies = sorted({int(super_family_json[pdb]['superfamily_id'].split(".")[0]) for pdb in h5metrics.keys() if pdb in super_family_json.keys()})
     
     # In order to avoid bias, we shuffle the list of pdbs if a subset is requested
@@ -489,7 +492,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
             all_alpha_beta = []
             accepted_superfamilies_domains = 0
             
-            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Solid Fraction vs Time {superfamiliy_labels[sf]}"):
+            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Solid Fraction vs Time {superfamily_labels[sf]}"):
                 if num_pdbs is not None and accepted_superfamilies_domains >= num_pdbs:
                     break  # Exit loop if reached the specified number of PDBs for the superfamily
                 super_family_id = int(super_family_json[pdb]['superfamily_id'].split(".")[0])
@@ -498,14 +501,13 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
                 
                 accepted_superfamilies_domains += 1
                 
-                with h5py.File(opj(mdcath_dir, f"mdcath_dataset_{pdb}.h5"), "r") as h5file:
+                with h5py.File(opj(mdcath_dir, pdb, f"mdcath_dataset_{pdb}.h5"), "r") as h5file:
                     numResidues = h5metrics[pdb].attrs['numResidues']
                     for repl in replicas:
-                        dssp = h5file[pdb][temp][repl]['dssp']
+                        dssp = h5file[pdb][temp][repl]['dssp'] # shape (numFrames, numResidues)
                         assert dssp.shape[1] == numResidues, f"Number of residues mismatch for {pdb} {temp}K {repl}"
                         
                         solid_fraction = get_solid_fraction(h5file[pdb][temp][repl]['dssp'], simplified=simplified)
-                        
                         mean_across_time = np.mean(solid_fraction, axis=1) # mean across the residues, shape (numFrames,)
                         assert not np.isnan(mean_across_time).any(), f"NaN values in the mean_across_time for {pdb} {temp}K {repl}"
                         
@@ -514,10 +516,10 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
                             continue
                         
                         normalized_ss_time = mean_across_time / mean_across_time[0] # shape (numFrames,)
-                        time_points.extend(np.arange(0, len(normalized_ss_time), 1)) 
+                        time_points.extend(np.arange(0, len(normalized_ss_time), 1))
                         all_alpha_beta.extend(normalized_ss_time)
             
-            print(f"Number of domains in {superfamiliy_labels[sf]} superfamily : {accepted_superfamilies_domains}")         
+            print(f"Number of domains in {superfamily_labels[sf]} superfamily : {accepted_superfamilies_domains}")         
             
             # Create 2D histogram
             hist, xedges, yedges = np.histogram2d(time_points, all_alpha_beta, bins=50, range=[[0, 450], [0, 1.5]], density=True)
@@ -525,15 +527,15 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
 
             # Axis labels and title
             if col == 0:
-                ax.set_ylabel(f"{temp}K\nRel. frac. of α+β structure") 
+                ax.set_ylabel(f"{temp}K\nRel. frac. of α+β structure", fontsize=20) 
             else:
                 ax.tick_params(axis='y', which='both', left=True, right=False, labelleft=False)
             if row == nRows - 1:
-                ax.set_xlabel("Time (ns)")
+                ax.set_xlabel("Time (ns)", fontsize=20)
             else:
                 ax.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=False)
 
-            ax.set_title(superfamiliy_labels[sf] if row == 0 else "")
+            ax.set_title(superfamily_labels[sf] if row == 0 else "", fontsize=21)
             ax.set_xlim(0, 450)
             ax.set_ylim(0, 1.5)
     
@@ -561,10 +563,9 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
     '''
     
     np.random.seed(7)
-    superfamiliy_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
+    superfamily_labels = {1:'Mainly Alpha', 2:'Mainly Beta', 3:'Mixed Alpha-Beta', 4:'Few Secondary Structures'}
     super_family_json = json.load(open("/shared/antoniom/buildCATHDataset/support/cath_info.json", "r"))
-    temps = ['320', '348', '379', '413', '450'] if temps is None else temps
-    mdcath_dir = "/workspace3/mdcath"
+    mdcath_dir = "/workspace8/antoniom/mdcath_htmd"
 
     temps = ['320', '348', '379', '413', '450'] if temps is None else temps
     replicas = get_replicas(mean_across)
@@ -586,7 +587,7 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
             all_beta = []
             all_coil = []
             
-            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Ternary Plot for temp {temp} {superfamiliy_labels[sf]}", ):
+            for pdb in tqdm(pdb_list, total=len(pdb_list), desc=f"Ternary Plot for temp {temp} {superfamily_labels[sf]}", ):
                 if num_pdbs is not None and accepted_superfamilies_domains >= num_pdbs:
                     break  # Exit loop if reached the specified number of PDBs for the superfamily
                 super_family_id = int(super_family_json[pdb]['superfamily_id'].split(".")[0])
@@ -594,7 +595,7 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
                     continue
                 accepted_superfamilies_domains += 1
                 
-                with h5py.File(opj(mdcath_dir, f"mdcath_dataset_{pdb}.h5"), "r") as h5file:
+                with h5py.File(opj(mdcath_dir, pdb, f"mdcath_dataset_{pdb}.h5"), "r") as h5file:
                     for repl in replicas:
                         alpha_comp, beta_comp, coil_comp = get_secondary_structure_compositions(h5file[pdb][temp][repl]['dssp'])
                         all_alpha.append(alpha_comp)
@@ -624,7 +625,7 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
                             #fontweight='bold',
                             )
             if row == 0:
-                ax.annotate(superfamiliy_labels[sf], 
+                ax.annotate(superfamily_labels[sf], 
                             xy=(0.5, 0.5), 
                             xytext=(0.5, 1.45), 
                             fontsize=18, 
@@ -639,10 +640,10 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
     plt.close()        
 
 def plot_combine_metrics(h5metrics, output_dir):
-    # Figure 2 of the paper
+    # Figure 3 of the paper
     labels = ['Number of Atoms', 'Number of Residues', 'Trajectory length (ns)', 'RMSD (nm)']
     data = {label: [] for label in labels}
-    for pdb in tqdm(h5metrics.keys(), total=len(h5metrics.keys()), desc="Figure 2"):
+    for pdb in tqdm(h5metrics.keys(), total=len(h5metrics.keys()), desc="Figure 3"):
         data['Number of Atoms'].append(h5metrics[pdb].attrs['numProteinAtoms'])
         data['Number of Residues'].append(h5metrics[pdb].attrs['numResidues'])
         for temp in h5metrics[pdb].keys():
@@ -657,7 +658,7 @@ def plot_combine_metrics(h5metrics, output_dir):
     letters = ['a', 'b', 'c', 'd']
     for i, label in enumerate(labels):
         axs[i].set_title(letters[i], loc='left', fontweight='bold')
-        axs[i].hist(data[label], linewidth=1.2, bins=40, color='cornflowerblue', edgecolor='white')
+        axs[i].hist(data[label], linewidth=1.2, bins=40, color='cornflowerblue', edgecolor='black')
         axs[i].set_xlabel(label)
         axs[i].set_ylabel("Counts")
 
