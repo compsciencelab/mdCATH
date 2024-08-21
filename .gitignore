@@ -162,3 +162,8 @@ build_noh/copy_files.py
 fixer/prova.py
 check_reproducibility/check_trajs.py
 fixer/sort_mimsmatch_output.py
+build_noh/*
+check_reproducibility/*
+fixer/*
+support/get_superfamily_distr.py
+process/append_info_from_joined.py
