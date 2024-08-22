@@ -13,11 +13,12 @@ fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
 class Payload:
-    def __init__(self, pdblist):
+    def __init__(self, data_dir, pdblist):
+        self.data_dir = data_dir
         self.pdblist = pdblist
         
     def runComputation(self, batch_idx):
-        sanity_check(self.pdblist, batch_idx)
+        sanity_check(self.data_dir, self.pdblist, batch_idx)
         
 def units_check(name, repl_group):
     assert repl_group['coords'].attrs['unit'] == 'Angstrom', f"{name}: Found unit {repl_group['coords'].attrs['unit']} for coords"
@@ -37,11 +38,10 @@ def shapes_check(name, repl_group, numResidues, numAtoms, numFrames):
     assert repl_group["box"].shape == (3, 3), f'{name}: box shape {repl_group["box"].shape} does not match (3, 3)'
         
 
-def sanity_check(pdblist, batch_idx):
-    mdcath_dir = '/workspace8/antoniom/mdcath_htmd'
+def sanity_check(data_dir, pdblist, batch_idx):
     dom = pdblist[batch_idx]
  
-    with  h5py.File(opj(mdcath_dir, f'{dom}/mdcath_dataset_{dom}.h5'), 'r') as f:
+    with  h5py.File(opj(data_dir, f'{dom}/mdcath_dataset_{dom}.h5'), 'r') as f:
         numAtoms = f[dom].attrs['numProteinAtoms']
         numResidues = f[dom].attrs['numResidues']
         
@@ -68,9 +68,10 @@ def readPDBs(pdbList):
     return sorted(pdblist)
 
 def launch():
-    pdblist_file = '/shared/antoniom/buildCATHDataset/accepted_pdbs_sorted.txt'
+    data_dir = '/PATH/TO/DATA'
+    pdblist_file = '/PATH/TO/PDBLIST'
     pdblist = readPDBs(pdblist_file)
-    payload = Payload(pdblist)
+    payload = Payload(data_dir, pdblist)
     
     results = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=24) as executor:
