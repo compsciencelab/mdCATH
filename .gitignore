@@ -164,3 +164,5 @@ support/get_superfamily_distr.py
 process/append_info_from_joined.py
 support/getCATH_info.py
 test/test_force_agg.py
+analysis/domains_mdCATH.ipynb
+analysis/note.ipynb
