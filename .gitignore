@@ -162,3 +162,4 @@ check_reproducibility/*
 fixer/*
 support/get_superfamily_distr.py
 process/append_info_from_joined.py
+support/getCATH_info.py
