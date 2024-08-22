@@ -13,7 +13,7 @@ from tqdm import tqdm
 import concurrent.futures
 from os.path import join as opj
 from tools import get_secondary_structure_compositions, get_max_neighbors, get_solid_secondary_structure, readPDBs
-sys.path.append("/shared/antoniom/buildCATHDataset/builder/")
+sys.path.append("/../builder/")
 from scheduler import ComputationScheduler
 
 
@@ -126,7 +126,7 @@ def run(scheduler, batch_idx, data_dir, output_dir='.', file_type='source', noh=
 def launch():
     data_dir = "PATH/TO/MDCATH/DATASET/DIR"
     output_dir = "batch_files"
-    pdb_list_file = '../accetptedPDBs.txt'
+    pdb_list_file = '../mdcath_domains.txt'
     # Define the type of file to be written, source or analysis
     # Based on this different attributes will be written
     file_type = 'source' 

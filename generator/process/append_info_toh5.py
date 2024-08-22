@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from os.path import join as opj
 from tools import get_secondary_structure_compositions, get_max_neighbors, get_solid_secondary_structure, readPDBs
-sys.path.append("/shared/antoniom/buildCATHDataset/builder/")
+sys.path.append("/../builder/")
 
 # Create a custom logger
 logger = logging.getLogger('append_info_toh5')
@@ -38,13 +38,13 @@ if __name__ == '__main__':
     # Define the h5 file for which the information will be modified
     origin_file = 'mdcath_analysis.h5'
     data_dir = "PATH/TO/MDCATH/DATASET/DIR"
-    pdb_list_file = ['1cqzB02', '4i69A00', '3qdkA02'] 
+    pdb_list = ['1cqzB02', '4i69A00', '3qdkA02'] 
     
     # Define the type of file to be written, source or analysis
     # Based on this different attributes will be written
     file_type = 'analysis' 
     noh_mode = False
-    pdb_list = readPDBs(pdb_list_file)
+    pdb_list = readPDBs(pdb_list)
     if file_type == 'analysis':
         to_recheck = open('log_doms_torecheck_mdcath_analysis_update.txt', 'a')
     basename = 'mdcath_noh' if noh_mode else 'mdcath' 
