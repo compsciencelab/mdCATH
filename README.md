@@ -1,16 +1,44 @@
 # mdCATH Dataset Repository
 
-Welcome to the mdCATH dataset repository! This repository houses all the scripts and notebooks utilized for generating, analyzing, and validating the mdCATH dataset.
+Welcome to the mdCATH dataset repository! This repository houses all the scripts and notebooks utilized for generating, analyzing, and validating the mdCATH dataset. The dataset is available on the Hugging Face platform. All mdCATH trajectories can be directly visualized on PlayMolecule without needing to download, or alternatively download them in XTC format from PlayMolecule if needed.
 
-## Directory Structure
+## Useful Links
+- Playmolecule: https://open.playmolecule.org/mdcath </br>
+- Hugging Face: https://huggingface.co/datasets/compsciencelab/mdCATH
 
-- **builder**: This directory is dedicated to generating the mdCATH dataset in H5 format. For each domain, an H5 file is created within a specific folder. This folder also contains a filtered PDB file and a corresponding logger file.
+## Repository Structure
 
-- **analysis**: In this directory, you will find the tools necessary to analyze the dataset. It includes notebooks used to generate the plots featured in our paper and perform comprehensive dataset analysis.
+- #### `generator`
+    - **Purpose**: Contains scripts used to generate the dataset.
+    - **Key Scripts**:
+    - `build.py`: This is the main script responsible for dataset creation. It accepts a list of CATH domains as input and produces mdcath dataset H5 files.
+    - **Features**:
+        - **Multiprocessing**: Utilizes multiprocessing to expedite the generation of the dataset.
+        - **Output**: For each domain, an H5 file is created in a designated folder. Additionally, a log file is generated to track the progress of dataset creation.
 
-- **support**: This directory contains scripts designed to interface with the CATH API, retrieving critical information such as superfamilies, architectures, and topologies.
+- #### `analysis`
+    - **Purpose**: Houses tools required for analyzing the dataset.
+    - **Components**:
+    - This directory includes various scripts and functions used to perform the analyses and generate the plots presented in the paper.
 
-## Highlights
-- **Batching and Multiprocessing**: Leverage the power of parallel processing to generate the dataset faster and more efficiently.
-  
-- **Comprehensive Analysis**: A set of pre-configured scripts and notebooks are available in analysis dir to replicate the plots and analyses presented in the paper.
+- #### `user`
+    - **Purpose**: Provides tutorials and example scripts to help new users familiarize themselves with the dataset.
+    - **Contents**:
+    - Step-by-step tutorials to guide users through common tasks and procedures using the dataset.
+    - Example scripts that demonstrate practical applications of the dataset in research scenarios.
+
+## Citation
+
+> Antonio Mirarchi, Toni Giorgino and Gianni De Fabritiis. *mdCATH: A Large-Scale MD Dataset for Data-Driven Computational Biophysics*. https://arxiv.org/abs/2407.14794 
+
+```
+@misc{mirarchi2024mdcathlargescalemddataset,
+      title={mdCATH: A Large-Scale MD Dataset for Data-Driven Computational Biophysics}, 
+      author={Antonio Mirarchi and Toni Giorgino and Gianni De Fabritiis},
+      year={2024},
+      eprint={2407.14794},
+      archivePrefix={arXiv},
+      primaryClass={q-bio.BM},
+      url={https://arxiv.org/abs/2407.14794}, 
+}
+```
