@@ -10,7 +10,7 @@ Welcome to the mdCATH dataset repository! This repository houses all the scripts
 
 - #### `generator`
     - Directory with the scripts used to generate the dataset.
-    - `build.py`: is the main script responsible for dataset creation. It processes a list of CATH domains and their molecular dynamics outputs to produce H5 files for the mdCATH dataset. It features multiprocessing to accelerate the dataset generation process. For each domain, an H5 file is created accompanied by a log file that records the progress.
+    - `builder/generator.py`: is the main script responsible for dataset creation. It processes a list of CATH domains and their molecular dynamics outputs to produce H5 files for the mdCATH dataset. It features multiprocessing to accelerate the dataset generation process. For each domain, an H5 file is created accompanied by a log file that records the progress.
 
 - #### `analysis`
     - Houses tools required for analyzing the dataset.
