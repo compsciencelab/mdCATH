@@ -13,7 +13,7 @@ Welcome to the mdCATH dataset repository! This repository houses all the scripts
     - Step-by-step tutorials to guide users through common tasks and procedures using the dataset.
     - Example scripts that demonstrate practical applications of the dataset in research scenarios.
 
-- #### `utils`
+- #### `user-utils`
     - TCL code to load mdCATH's HDF5 files in VMD (for end-users)
     - Python code to convert files to XTC format (for end-users)
 
