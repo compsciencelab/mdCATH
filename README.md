@@ -8,6 +8,15 @@ Welcome to the mdCATH dataset repository! This repository houses all the scripts
 
 ## Repository Structure
 
+- #### `user`
+    - Provides tutorials and example scripts to help new users familiarize themselves with the dataset.
+    - Step-by-step tutorials to guide users through common tasks and procedures using the dataset.
+    - Example scripts that demonstrate practical applications of the dataset in research scenarios.
+
+- #### `utils`
+    - TCL code to load mdCATH's HDF5 files in VMD (for end-users)
+    - Python code to convert files to XTC format (for end-users)
+
 - #### `generator`
     - Directory with the scripts used to generate the dataset.
     - `builder/generator.py`: is the main script responsible for dataset creation. It processes a list of CATH domains and their molecular dynamics outputs to produce H5 files for the mdCATH dataset. It features multiprocessing to accelerate the dataset generation process. For each domain, an H5 file is created accompanied by a log file that records the progress.
@@ -16,10 +25,6 @@ Welcome to the mdCATH dataset repository! This repository houses all the scripts
     - Houses tools required for analyzing the dataset.
     - This directory includes various scripts and functions used to perform the analyses and generate the plots presented in the paper.
 
-- #### `user`
-    - Provides tutorials and example scripts to help new users familiarize themselves with the dataset.
-    - Step-by-step tutorials to guide users through common tasks and procedures using the dataset.
-    - Example scripts that demonstrate practical applications of the dataset in research scenarios.
 
 ## Citation
 
