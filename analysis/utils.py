@@ -535,7 +535,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
             # Create 2D histogram
             hist, xedges, yedges = np.histogram2d(time_points, all_alpha_beta, bins=50, range=[[0, 450], [0, 1.5]], density=True)
             ax.imshow(hist.T, origin='lower', aspect='auto', extent=(xedges[0], xedges[-1], yedges[0], yedges[-1]), cmap='viridis')
-
+            
             # Axis labels and title
             if col == 0:
                 ax.set_ylabel(f"{temp}K\nRel. frac. of α+β structure", fontsize=20) 
@@ -551,7 +551,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
             ax.set_ylim(0, 1.5)
     
     plt.tight_layout()
-    plt.savefig(opj(output_dir, f"HeatMap_RSF_vs_TIME_{num_pdbs}Samples_4Superfamilies.png"), dpi=300)
+    plt.savefig(opj(output_dir, f"HeatMap_RSF_vs_TIME_{num_pdbs}Samples_4Superfamilies.png"), dpi=300, bbox_inches='tight')
 
 def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdbs=None, cbar=False):
     import mpltern
