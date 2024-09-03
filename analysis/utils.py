@@ -551,9 +551,10 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
     plt.tight_layout()
     plt.savefig(opj(output_dir, f"HeatMap_RSF_vs_TIME_{num_pdbs}Samples_4Superfamilies.png"), dpi=300)
 
-def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdbs=None):
+def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdbs=None, cbar=False):
     import mpltern
-    
+    from matplotlib.ticker import LogFormatter 
+ 
     ''' Use mpltern to plot alpha, beta and coil fractions for each superfamily at each temperature considering only the last
     frame of the trajectory in a ternary plot.
     Params:
@@ -567,8 +568,8 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
         temperatures to consider, if None all the temperatures are considered
     - num_pdbs:
         number of pdbs to consider per superfamily   
-    - simplified:
-        if True, the solid fraction is simplified to 3 types: α, β, and other (dssp based)
+    - cbar:
+        if True, a colorbar is added to the plot
     '''
     
     np.random.seed(7)
@@ -580,9 +581,10 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
     replicas = get_replicas(mean_across)
     superfamilies = sorted({int(super_family_json[pdb]['superfamily_id'].split(".")[0]) for pdb in h5metrics.keys() if pdb in super_family_json.keys()})
     
+    vmin, vmax = 1, 350
     # In order to avoid bias, we shuffle the list of pdbs if a subset is requested
     pdb_list = list(h5metrics.keys()) if num_pdbs is None else np.random.choice(list(h5metrics.keys()), len(h5metrics.keys()), replace=False)
-    
+        
     nRows = len(temps)
     nCols = len(superfamilies)
 
@@ -613,20 +615,21 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
                         
             # ternary plot for the specific superfamily and temperature
             ax = plt.subplot(nRows, nCols, row * nCols + col + 1, projection='ternary')
-            ax.set_tlabel('Alpha', fontsize=12)
-            ax.set_llabel('Beta', fontsize=12)
-            ax.set_rlabel('Coil/turn', fontsize=12)
+            ax.set_tlabel('Alpha', fontsize=fsize-2)
+            ax.set_llabel('Beta', fontsize=fsize-2)
+            ax.set_rlabel('Coil/turn', fontsize=fsize-2)
             
             t, l, r = np.array(all_alpha), np.array(all_beta), np.array(all_coil)
             if sf == 4:
-                ax.hexbin(t, l, r, bins='log', edgecolors='face', cmap='viridis', gridsize=30, linewidths=0) # few secondary structure less points
+                # few secondary structure less points
+                hex = ax.hexbin(t, l, r, bins='log', edgecolors='face', cmap='viridis', gridsize=30, linewidths=0, vmin=vmin, vmax=vmax)
             else:                 
-                ax.hexbin(t, l, r, bins='log', edgecolors='face', cmap='viridis', gridsize=50, linewidths=0)
-            
+                hex = ax.hexbin(t, l, r, bins='log', edgecolors='face', cmap='viridis', gridsize=50, linewidths=0, vmin=vmin, vmax=vmax)
+                       
             if col == 0:
                 ax.annotate(f"{temp}K", xy=(0.5, 0.5), 
-                            xytext=(-0.45, 0.5), 
-                            fontsize=18, 
+                            xytext=(-0.52, 0.5), 
+                            fontsize=fsize+2, 
                             ha='center', 
                             va='center', 
                             xycoords='axes fraction', 
@@ -636,16 +639,33 @@ def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=N
             if row == 0:
                 ax.annotate(superfamily_labels[sf], 
                             xy=(0.5, 0.5), 
-                            xytext=(0.5, 1.45), 
-                            fontsize=18, 
+                            xytext=(0.5, 1.6), 
+                            fontsize=fsize+2, 
                             ha='center', 
                             va='center', 
                             xycoords='axes fraction', 
                             textcoords='axes fraction', 
                             #fontweight='bold',
                             )
-    plt.tight_layout()
-    plt.savefig(opj(output_dir, f"ternary_plot_{(str(num_pdbs) + 'Samples_') if num_pdbs is not None else ''}4Superfamilies.png"), dpi=600)
+    if cbar:
+        # Place the color bar at the bottom of the plots
+        fig.subplots_adjust(bottom=0.17, top=0.84, left=0.1, right=0.95, hspace=0.69, wspace=0.55)
+        cax = fig.add_axes([0.1, 0.1, 0.8, 0.02])
+        #ticks = np.array([0, 50, 100, 200, vmax])
+                
+        #cbar = fig.colorbar(hex, cax=cax, orientation='horizontal', ticks=ticks)
+        #cbar.set_ticklabels([f"{int(t)}" for t in ticks])
+
+        formatter = LogFormatter(10, labelOnlyBase=False)
+        cbar = fig.colorbar(hex, format=formatter, cax=cax, orientation='horizontal')
+        cbar.set_label('Counts', fontsize=22)
+        cbar.ax.tick_params(labelsize=20)
+        
+    else:
+        plt.tight_layout()
+        
+    plt.savefig(opj(output_dir, f"ternary_plot_{(str(num_pdbs) + 'Samples_') if num_pdbs is not None else ''}4Superfamilies{'_cbar' if cbar else ''}.png"), 
+                dpi=600, bbox_inches='tight')
     plt.close()        
 
 def plot_combine_metrics(h5metrics, output_dir):
