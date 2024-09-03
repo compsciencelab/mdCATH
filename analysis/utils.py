@@ -334,7 +334,7 @@ def plot_solidFraction_RMSF(h5metrics, output_dir, numSamples=3, simplified=Fals
                 ax.scatter(rmsf, solid_fraction_time, c=np.arange(len(rmsf)), cmap='rainbow')
                 ax.set_title(f"{sample} {temp}K")
                 ax.set_xlabel("RMSF (nm)")
-                ax.set_ylabel("Fraction of α+β structure")
+                ax.set_ylabel("Fraction of time in α/β config.")
                 # column zero set xlim 
                 if j == 0:
                     ax.set_xlim(0, 1)
@@ -344,7 +344,7 @@ def plot_solidFraction_RMSF(h5metrics, output_dir, numSamples=3, simplified=Fals
                 ax.set_ylim(-0.1, 1.1)
 
     plt.tight_layout()
-    plt.savefig(opj(output_dir, f"solidFraction_RMSF_{'simplified' if simplified else ''}.png"), dpi=600)
+    plt.savefig(opj(output_dir, f"solidFraction_RMSF{'_simplified' if simplified else ''}.png"), dpi=600)
 
 def get_replicas(mean_across):
     if mean_across == 'all':
