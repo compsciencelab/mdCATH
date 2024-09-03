@@ -154,7 +154,7 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
         ncols = 3
         nrows = math.ceil(numSamples / ncols)
         fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 5), sharex=shared_axes, sharey=shared_axes)
-        fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.3, wspace=0.3)
+        fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.35, wspace=0.35)
 
         for i, sample in tqdm(enumerate(samples), total=numSamples, desc="GyrRad_solidSS (A)"):
             if nrows == 1 or ncols == 1:  # Single row or column case
@@ -231,17 +231,18 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
         cbar.set_label(cbar_label)
         cbar.set_ticks(cbar_ticks)
         cbar.set_ticklabels(cbar_ticklabels)
-        plt.savefig(opj(output_dir, f"GyrRad_solidSS_A_domainImages_{'ShareAxs' if shared_axes else ''}.png"), dpi=600)
+        plt.savefig(opj(output_dir, f"GyrRad_solidSS_A_domainImages{'_ShareAxs' if shared_axes else ''}.png"), dpi=600)
     
     
     ## HERE WE PLOT A GRID FOR THE SAME SAMPLE BUT DIFFERENT TEMPERATURES (SAME REPLICA) ## 
     if 'B' in plot_type:
         sample_i = '5sicI00' 
+        repl = '1'
         ncols = 3
         nrows = 2
         fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 5))
         axs = axs.flatten()
-        fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.3, wspace=0.35)
+        fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.85, hspace=0.35, wspace=0.35)
         for i, temp in tqdm(enumerate(list(h5data[sample_i].keys())), total=len(h5data[sample_i].keys()), desc="GyrRad_solidSS (B)"):
             ax = axs[i]
             temp_repl_group = h5data[sample_i][temp][repl]
@@ -256,7 +257,15 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
             ax.set_title(f"{temp}K")
             ax.set_xlabel("Fraction of α+β structure")
             ax.set_ylabel("Gyration radius (nm)")
-        
+            
+            # On the first subplot, a thumbnail of the domain is added
+            if i == 0:
+                axins = inset_axes(ax, width="45%", height="45%", loc='upper right')
+                pngpath = opj(domain_figures, f"{sample_i}.png")
+                assert os.path.exists(pngpath), f"Image {pngpath} not found"
+                img = plt.imread(pngpath)
+                axins.imshow(img)
+                axins.axis('off')
         
         xmin = 0.28
         xmax = 0.62 
@@ -287,7 +296,7 @@ def plot_GyrRad_SecondaryStruc(h5data, output_dir, numSamples=6, shared_axes=Fal
         cbar.set_label(cbar_label)
         cbar.set_ticks(cbar_ticks)
         cbar.set_ticklabels(cbar_ticklabels)
-        plt.savefig(opj(output_dir, f"GyrRad_solidSS_B_{sample_i}_replica{repl}.png"), dpi=600)
+        plt.savefig(opj(output_dir, f"GyrRad_solidSS_B_{sample_i}_replica{repl}_thumbnail.png"), dpi=600)
 
 def get_solid_fraction(dssp, simplified=False):
     # Compute the solid fraction of α+β structure in the secondary structure wrt to the time.
