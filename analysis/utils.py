@@ -454,7 +454,7 @@ def get_secondary_structure_compositions(dssp):
 def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdbs=None, simplified=False):
     """ Plot on x_axis the time in ns and on y_axis the fraction of alpha+beta structure respect to the start of the simulation.
     Rows are the temperatures and columns are the superfamilies. The relative solid fraction (RSF) is computed as the fraction of 
-    α+β structure in the secondary structure. [figure 8 of the paper]
+    α+β structure in the secondary structure. [figure S1 of the paper]
     
     Params:
     ------------
@@ -518,7 +518,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
                         dssp = h5file[pdb][temp][repl]['dssp'] # shape (numFrames, numResidues)
                         assert dssp.shape[1] == numResidues, f"Number of residues mismatch for {pdb} {temp}K {repl}"
                         
-                        solid_fraction = get_solid_fraction(h5file[pdb][temp][repl]['dssp'], simplified=simplified)
+                        solid_fraction = get_solid_fraction(dssp, simplified=simplified)
                         mean_across_time = np.mean(solid_fraction, axis=1) # mean across the residues, shape (numFrames,)
                         assert not np.isnan(mean_across_time).any(), f"NaN values in the mean_across_time for {pdb} {temp}K {repl}"
                         
