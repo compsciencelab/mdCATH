@@ -14,7 +14,7 @@ from utils import *
 
 if __name__ == "__main__":
     output_dir = "figures/"
-    h5metrics = h5py.File("../process/h5files/mdcath_analysis.h5", "r")
+    h5metrics = h5py.File("/shared/antoniom/buildCATHDataset/generator/process/h5files/mdcath_analysis.h5", "r")
 
     plot_len_trajs(h5metrics, output_dir)
     plot_numAtoms(h5metrics, output_dir)
