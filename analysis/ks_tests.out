@@ -1,0 +1,7 @@
+Comparing at 450 K and 400 ns
+KS test between superfamily 1 and 2: p = 6.581573872996166e-38
+KS test between superfamily 1 and 3: p = 1.7307902029125603e-14
+KS test between superfamily 1 and 4: p = 5.372525605655362e-07
+KS test between superfamily 2 and 3: p = 7.681808528159001e-21
+KS test between superfamily 2 and 4: p = 3.515704846981462e-15
+KS test between superfamily 3 and 4: p = 0.00043792185579115856
