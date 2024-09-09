@@ -3,6 +3,7 @@ import h5py
 import math
 import json
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from os.path import join as opj
 import matplotlib.pyplot as plt
@@ -493,6 +494,7 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
 
     
     # Iterate over temperatures and superfamilies
+    result_dataset = []
     for row, temp in enumerate(temps):
         print(f"Temperature: {temp}")
         for col, sf in enumerate(superfamilies):
@@ -531,6 +533,11 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
                         all_alpha_beta.extend(normalized_ss_time)
             
             print(f"Number of domains in {superfamily_labels[sf]} superfamily : {accepted_superfamilies_domains}")         
+
+            result_dataset.append(pd.DataFrame({'temp': temp, 
+                                                'sf': sf, 
+                                                'time_points': np.array(time_points), 
+                                                'all_alpha_beta': np.array(all_alpha_beta)}))
             
             # Create 2D histogram
             hist, xedges, yedges = np.histogram2d(time_points, all_alpha_beta, bins=50, range=[[0, 450], [0, 1.5]], density=True)
@@ -550,8 +557,14 @@ def plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all',
             ax.set_xlim(0, 450)
             ax.set_ylim(0, 1.5)
     
+    result_dataset = pd.concat(result_dataset)
+    result_dataset.to_csv(f"HeatMap_RSF_vs_TIME_{num_pdbs}Samples_4Superfamilies.csv")
+
     plt.tight_layout()
     plt.savefig(opj(output_dir, f"HeatMap_RSF_vs_TIME_{num_pdbs}Samples_4Superfamilies.png"), dpi=300, bbox_inches='tight')
+    
+
+
 
 def plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdbs=None, cbar=False):
     import mpltern
