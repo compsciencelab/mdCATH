@@ -14,7 +14,7 @@ from utils import *
 
 if __name__ == "__main__":
     output_dir = "figures/"
-    h5metrics = h5py.File("../process/h5files/mdcath_analysis.h5", "r")
+    h5metrics = h5py.File("../generator/process/h5files/mdcath_analysis.h5", "r")
 
     plot_len_trajs(h5metrics, output_dir)
     plot_numAtoms(h5metrics, output_dir)
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     plot_solidFraction_vs_numResidues(h5metrics, output_dir, mean_across='all', temps=None, simplified=True)
     plot_heatmap_ss_time_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdbs=None, simplified=True)
     plot_ternary_superfamilies(h5metrics, output_dir, mean_across='all', temps=None, num_pdbs=None, cbar=True) 
-    #plot_combine_metrics(h5metrics, output_dir)
+    plot_combine_metrics(h5metrics, output_dir)
     plot_maxNumNeighbors(h5metrics, output_dir, cutoff=['5A'])
     scatterplot_maxNumNeighbors_numNoHAtoms(h5metrics, output_dir, cutoff=['5A', '9A'])
     plot_numNoHAtoms(h5metrics, output_dir)
