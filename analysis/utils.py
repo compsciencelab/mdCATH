@@ -694,7 +694,7 @@ def plot_combine_metrics(h5metrics, output_dir):
         axs[i].set_ylabel("Counts")
 
     plt.tight_layout()
-    plt.savefig(opj(output_dir, "combined_metrics.png"), dpi=300)
+    plt.savefig(opj(output_dir, "dataset_info.png"), dpi=300)
     plt.close()
 
 def plot_maxNumNeighbors(h5metrics, output_dir, cutoff=['5A']):
