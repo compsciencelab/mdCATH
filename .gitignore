@@ -145,6 +145,7 @@ dmypy.json
 *.png
 *.log
 *.txt
+*.tiff
 benchmark/*
 generators/force_eval.py
 fastfolder_metadata.ipynb
