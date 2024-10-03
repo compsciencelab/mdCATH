@@ -1,0 +1,27 @@
+Comparing at 450 K and 400 ns
+Dataset 50...
+KS test between superfamily 1 and 2: p = 6.581573872996166e-38
+KS test between superfamily 1 and 3: p = 1.7307902029125603e-14
+KS test between superfamily 1 and 4: p = 5.372525605655362e-07
+KS test between superfamily 2 and 3: p = 7.681808528159001e-21
+KS test between superfamily 2 and 4: p = 3.515704846981462e-15
+KS test between superfamily 3 and 4: p = 0.00043792185579115856
+MW test between superfamily 1 and 2: p = 1.0457841378617276e-28
+MW test between superfamily 1 and 3: p = 6.4703084412835936e-18
+MW test between superfamily 1 and 4: p = 1.204967764513355e-05
+MW test between superfamily 2 and 3: p = 3.364412437589386e-15
+MW test between superfamily 2 and 4: p = 5.512181339610675e-16
+MW test between superfamily 3 and 4: p = 0.021690045008652396
+Dataset ALL...
+KS test between superfamily 1 and 2: p = 0.0
+KS test between superfamily 1 and 3: p = 0.0
+KS test between superfamily 1 and 4: p = 4.311088393615429e-08
+KS test between superfamily 2 and 3: p = 0.0
+KS test between superfamily 2 and 4: p = 9.618254579953343e-35
+KS test between superfamily 3 and 4: p = 1.5269634056171598e-10
+MW test between superfamily 1 and 2: p = 0.0
+MW test between superfamily 1 and 3: p = 0.0
+MW test between superfamily 1 and 4: p = 1.3523629171669599e-05
+MW test between superfamily 2 and 3: p = 3.0645888323936354e-283
+MW test between superfamily 2 and 4: p = 2.1610578472697972e-34
+MW test between superfamily 3 and 4: p = 9.648918941532586e-09
