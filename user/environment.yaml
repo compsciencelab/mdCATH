@@ -1,0 +1,9 @@
+name: mdcath_torchmdnet
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - torchmd-net>=2.4.0
+  - pip:
+    - ipykernel
+    - ase
