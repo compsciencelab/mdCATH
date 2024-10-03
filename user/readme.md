@@ -1,7 +1,11 @@
 ## mdCATH User Guide
 
-In order to run the `2_mdCATH_ML.ipynb` create a proper environment by running the following command:
-```bash
+To run the 2_mdCATH_ML.ipynb notebook, follow these steps to set up the environment:
+
+1. Create the environment by running the following command:
+
+    ```bash
     mamba env create -f environment.yml
-```
-Then activate 'mdcath_torchmdnet' in your notebook. 
+    ```
+    
+2. Activate the environment named mdcath_torchmdnet in your notebook.
