@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 import os
 
+MDCATH_PICOSECONDS_PER_FRAME = 1000.
 
 def _open_h5_file(h5):
     if isinstance(h5, str):
@@ -82,12 +83,12 @@ def convert_to_mdtraj(h5, temp, replica):
     top = md.load(pdb_file_name).topology
     os.unlink(pdb_file_name)
     nframes = coords.shape[0]
-    uc_lenghts = np.repeat(box.diagonal()[None,:], nframes, axis=0)
+    uc_lengths = np.repeat(box.diagonal()[None,:], nframes, axis=0)
     uc_angles =  np.repeat(np.array([90.,90.,90.])[None,:], nframes, axis=0)
     trj = md.Trajectory(coords.copy(), 
                         topology=top, 
-                        time=np.arange(1, coords.shape[0] + 1),
-                        unitcell_lengths = uc_lenghts,
+                        time=np.arange(1, coords.shape[0] + 1)*MDCATH_PICOSECONDS_PER_FRAME,
+                        unitcell_lengths = uc_lengths,
                         unitcell_angles = uc_angles
                         )
     return trj
@@ -135,8 +136,12 @@ def convert_to_moleculekit(h5, temp, replica):
     pdb_file_name, coords, box = _extract_structure_and_coordinates(h5, code, temp, replica)
     trj = mk.Molecule(pdb_file_name, name=f"{code}_{temp}_{replica}")
     os.unlink(pdb_file_name)
+    nframes = coords.shape[0]
+    uc_lengths = np.repeat(box.diagonal()[None,:], nframes, axis=0)
     trj.coords = coords.transpose([1, 2, 0]).copy()
     trj.time = np.arange(1, coords.shape[0] + 1)
+    trj.box = uc_lengths.T * 10.0
+
     # TODO? .step, .numframes
     return trj
 
