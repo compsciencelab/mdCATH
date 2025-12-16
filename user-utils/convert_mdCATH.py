@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 import os
 
+MDCATH_PICOSECONDS_PER_FRAME = 1000.
 
 def _open_h5_file(h5):
     if isinstance(h5, str):
@@ -28,15 +29,16 @@ def _extract_structure_and_coordinates(h5, code, temp, replica):
 
     Returns:
     tuple
-        A tuple containing the PDB data as bytes and the coordinates as a numpy array.
+        A tuple containing the PDB data as bytes, coordinates as a numpy array, and box as a numpy vector.
     """
     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as pdbfile:
         pdb = h5[code]["pdbProteinAtoms"][()]
         pdbfile.write(pdb)
         pdbfile.flush()
         coords = h5[code][f"{temp}"][f"{replica}"]["coords"][:]
+        box = h5[code][f"{temp}"][f"{replica}"]["box"][:]
     coords = coords / 10.0
-    return pdbfile.name, coords
+    return pdbfile.name, coords, box
 
 
 def convert_to_mdtraj(h5, temp, replica):
@@ -77,11 +79,18 @@ def convert_to_mdtraj(h5, temp, replica):
     import mdtraj as md
 
     h5, code = _open_h5_file(h5)
-    pdb_file_name, coords = _extract_structure_and_coordinates(h5, code, temp, replica)
-    trj = md.load(pdb_file_name)
+    pdb_file_name, coords, box = _extract_structure_and_coordinates(h5, code, temp, replica)
+    top = md.load(pdb_file_name).topology
     os.unlink(pdb_file_name)
-    trj.xyz = coords.copy()
-    trj.time = np.arange(1, coords.shape[0] + 1)
+    nframes = coords.shape[0]
+    uc_lengths = np.repeat(box.diagonal()[None,:], nframes, axis=0)
+    uc_angles =  np.repeat(np.array([90.,90.,90.])[None,:], nframes, axis=0)
+    trj = md.Trajectory(coords.copy(), 
+                        topology=top, 
+                        time=np.arange(1, coords.shape[0] + 1)*MDCATH_PICOSECONDS_PER_FRAME,
+                        unitcell_lengths = uc_lengths,
+                        unitcell_angles = uc_angles
+                        )
     return trj
 
 
@@ -124,11 +133,15 @@ def convert_to_moleculekit(h5, temp, replica):
     import moleculekit.molecule as mk
 
     h5, code = _open_h5_file(h5)
-    pdb_file_name, coords = _extract_structure_and_coordinates(h5, code, temp, replica)
+    pdb_file_name, coords, box = _extract_structure_and_coordinates(h5, code, temp, replica)
     trj = mk.Molecule(pdb_file_name, name=f"{code}_{temp}_{replica}")
     os.unlink(pdb_file_name)
+    nframes = coords.shape[0]
+    uc_lengths = np.repeat(box.diagonal()[None,:], nframes, axis=0)
     trj.coords = coords.transpose([1, 2, 0]).copy()
     trj.time = np.arange(1, coords.shape[0] + 1)
+    trj.box = uc_lengths.T * 10.0
+
     # TODO? .step, .numframes
     return trj
 
